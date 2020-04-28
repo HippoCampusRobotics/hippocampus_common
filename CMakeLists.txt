@@ -4,6 +4,7 @@ project(hippocampus_common)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   roscpp
+  pyquaternion
 )
 
 catkin_python_setup()
