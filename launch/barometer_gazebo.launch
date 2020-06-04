@@ -1,0 +1,6 @@
+<launch>
+ <arg name="launch_prefix" default="" /> <!-- set to value="gdbserver localhost:10000" for remote debugging -->
+            <!--gazebo to barometer -->
+  <node pkg="hippocampus_common" type="barometer_gazebo.py" name="barometer_underwater_depth" clear_params="true" output="screen" launch-prefix="$(arg launch_prefix)" >
+  </node>
+</launch>
