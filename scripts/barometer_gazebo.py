@@ -10,7 +10,7 @@ from gazebo_msgs.msg import ModelStates
 from geometry_msgs.msg import Pose, PoseArray, PoseStamped
 
 
-publisher_barometer = rospy.Publisher("/barometer", PoseStamped, queue_size=1)
+publisher_barometer = rospy.Publisher("/gazebo/barometer", PoseStamped, queue_size=1)
 
 rate = None
 
