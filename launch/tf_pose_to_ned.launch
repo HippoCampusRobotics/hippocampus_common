@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="hippocampus_common" type="tf_pose_to_ned_node" name="tf_pose_to_ned_node" />
+</launch>
