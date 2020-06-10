@@ -1,6 +1,3 @@
 <launch>
- <arg name="launch_prefix" default="" /> <!-- set to value="gdbserver localhost:10000" for remote debugging -->
-            <!-- ENU_to_NED -->
-  <node pkg="hippocampus_common" type="mavros_local_pos_ENU_to_NED.py" name="enu_to_ned_tank_coordinate_system" clear_params="true" output="screen" launch-prefix="$(arg launch_prefix)" >
-  </node>
+    <node pkg="hippocampus_common" type="tf_pose_to_ned_node" name="tf_pose_to_ned_node" />
 </launch>
