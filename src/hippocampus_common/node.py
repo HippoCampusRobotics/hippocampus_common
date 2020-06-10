@@ -22,3 +22,27 @@ class Node(object):
         while not rospy.is_shutdown():
             rospy.spin()
         rospy.loginfo("[{}] Shutting down...".format(rospy.get_name()))
+
+    def _get_param(self, name, default):
+        """Get a parameter from the ROS parameter server.
+
+        Logs a warning if parameter does not exist sets the default value
+        afterwards.
+
+        Args:
+            name (str): Name of the parameter.
+            default : Default value to be used if parameter does not exist.
+        Returns:
+            [XmlRpcLegalType]: Either the read parameter or the default value if
+                it does not exist.
+        """
+        try:
+            param = rospy.get_param(name)
+        except KeyError:
+            rospy.set_param(name, default)
+            param = default
+            rospy.logwarn("[{}] Parameter '{}' does not exist.".format(
+                rospy.get_name(), name))
+        finally:
+            rospy.loginfo("[{}] {}={}".format(rospy.get_name(), name, param))
+        return param
