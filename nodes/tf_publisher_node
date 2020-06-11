@@ -1,0 +1,107 @@
+#!/usr/bin/env python
+
+import rospy
+from geometry_msgs.msg import PoseStamped, Quaternion, TransformStamped, Vector3
+import tf.transformations
+import tf2_ros
+from hippocampus_common.node import Node
+from hippocampus_common.tf_helper import TfHelper
+
+
+class TfPublisherNode(Node):
+    def __init__(self):
+        super(TfPublisherNode, self).__init__("tf_publisher_node")
+
+        self.tf_helper = TfHelper()
+
+        self.camera_broadcaster = tf2_ros.StaticTransformBroadcaster()
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster()
+
+        self._camera_link_tf = None
+        self._camera_frame_tf = None
+        self._base_link_flu_to_frd_tf = None
+
+        self.broadcast_static_tf()
+
+        rospy.Subscriber("mavros/local_position/pose",
+                         PoseStamped,
+                         self.pose_callback,
+                         queue_size=1)
+
+    def pose_callback(self, pose):
+        self.broadcast_base_link_tf(pose)
+
+    def broadcast_static_tf(self):
+        link = self.get_camera_link_transform()
+        frame = self.get_camera_frame_transform()
+        base_flu_to_frd = self.tf_helper.get_base_link_flu_to_frd_tf()
+        self.camera_broadcaster.sendTransform([link, frame, base_flu_to_frd])
+
+    def broadcast_base_link_tf(self, pose):
+        transform = TransformStamped()
+        transform.transform.translation = pose.pose.position
+        transform.transform.rotation = pose.pose.orientation
+        transform.header = pose.header
+        transform.child_frame_id = self.tf_helper.get_base_link_id()
+
+        self.tf_broadcaster.sendTransform(transform)
+
+    def get_camera_link_transform(self):
+        if not self._camera_link_tf:
+            self._camera_link_tf = self._get_camera_link_transform()
+        return self._camera_link_tf
+
+    def _get_camera_link_transform(self):
+        # read the pose from the parameter server
+        pos_x = Node.get_param("~camera/x", 0.0)
+        pos_y = Node.get_param("~camera/y", 0.0)
+        pos_z = Node.get_param("~camera/z", 0.0)
+        roll = Node.get_param("~camera/roll", 0.0)
+        pitch = Node.get_param("~camera/pitch", 0.0)
+        yaw = Node.get_param("~camera/yaw", 0.0)
+
+        # create a transform message that will be returned by this function
+        transform = TransformStamped()
+        transform.header.stamp = rospy.Time.now()
+        transform.header.frame_id = self.tf_helper.get_base_link_id()
+        rospy.logerr(transform.header.frame_id)
+        transform.child_frame_id = self.tf_helper.get_camera_link_id()
+
+        transform.transform.translation = Vector3(x=pos_x, y=pos_y, z=pos_z)
+
+        quat = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
+
+        transform.transform.rotation = Quaternion(x=quat[0],
+                                                  y=quat[1],
+                                                  z=quat[2],
+                                                  w=quat[3])
+
+        return transform
+
+    def _get_camera_frame_transform(self):
+        transform = TransformStamped()
+        transform.header.stamp = rospy.Time.now()
+        transform.header.frame_id = self.tf_helper.get_camera_link_id()
+        transform.child_frame_id = self.tf_helper.get_camera_frame_id()
+
+        quat = tf.transformations.quaternion_from_euler(-1.57, 0, -1.57)
+
+        transform.transform.rotation = Quaternion(x=quat[0],
+                                                  y=quat[1],
+                                                  z=quat[2],
+                                                  w=quat[3])
+        return transform
+
+    def get_camera_frame_transform(self):
+        if not self._camera_frame_tf:
+            self._camera_frame_tf = self._get_camera_frame_transform()
+        return self._camera_frame_tf
+
+
+def main():
+    node = TfPublisherNode()
+    node.run()
+
+
+if __name__ == "__main__":
+    main()

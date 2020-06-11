@@ -23,7 +23,8 @@ class Node(object):
             rospy.spin()
         rospy.loginfo("[{}] Shutting down...".format(rospy.get_name()))
 
-    def _get_param(self, name, default):
+    @staticmethod
+    def get_param(name, default):
         """Get a parameter from the ROS parameter server.
 
         Logs a warning if parameter does not exist sets the default value
