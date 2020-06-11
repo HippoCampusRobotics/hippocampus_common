@@ -6,8 +6,8 @@ converts them to px4's NED frame and publishes them.
 
 import rospy
 from geometry_msgs.msg import PoseStamped
-import tf2_ros
 import tf2_geometry_msgs
+from hippocampus_common.tf_helper import TfHelper
 
 from hippocampus_common import node
 
@@ -19,10 +19,9 @@ class TfNode(node.Node):
     def __init__(self):
         super(TfNode, self).__init__("tf_pose_to_ned_node")
 
-        self.tf_buffer = tf2_ros.Buffer(rospy.Duration(10))
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        self.tf_helper = TfHelper()
 
-        self.pose_publisher = rospy.Publisher("pose_ned",
+        self.pose_publisher = rospy.Publisher("pose_px4",
                                               PoseStamped,
                                               queue_size=1)
 
@@ -32,30 +31,20 @@ class TfNode(node.Node):
                          queue_size=1)
 
     def pose_callback(self, pose_msg):
-        """Transforms incoming pose messages to the 'map_ned' frame.
-
-        The input pose can be in an arbitrary frame as long as there is the
-        necessary tf information published how to transform the pose from the
-        source frame to the 'map_ned' frame. Usually the input pose is expressed
-        in the 'map' frame.
-
-        Args:
-            pose_msg (PoseStamped): The pose that shall be transformed to the
-                'map_ned' frame.
-        """
-
-        # lookup the latest transformation info
-        transform = self.tf_buffer.lookup_transform(
+        # switch from ros body frame convention to px4 body frame convention
+        pose = self.tf_helper.pose_flu_to_frd(pose_msg)
+        # switch from ros world frame convention to px4 world frame convetion
+        transform = self.tf_helper.tf_buffer.lookup_transform(
             target_frame="map_ned",
-            source_frame=pose_msg.header.frame_id,
+            source_frame=pose.header.frame_id,
             time=rospy.Time(0),
             timeout=rospy.Duration(1))
 
         # transform the pose
-        pose_msg = tf2_geometry_msgs.do_transform_pose(pose_msg, transform)
+        pose = tf2_geometry_msgs.do_transform_pose(pose, transform)
 
         # publish the message of the transformed pose.
-        self.pose_publisher.publish(pose_msg)
+        self.pose_publisher.publish(pose)
 
 
 def main():

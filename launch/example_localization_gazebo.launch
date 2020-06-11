@@ -47,11 +47,13 @@
             <arg name="tgt_component" value="1" />
         </include>
 
-        <include file="$(find hippocampus_common)/launch/tf_pose_to_ned.launch"></include>
 
-        <!-- start the localization nodes -->
+        <include file="$(find hippocampus_common)/launch/tf_publisher.launch"></include>
+        <include file="$(find hippocampus_common)/launch/tf_pose_ros_to_px4.launch"></include>
+
         <include file="$(find mu_auv_localization)/launch/gazebo_localization.launch">
             <arg name="ns" value="uuv00" />
         </include>
+
     </group>
 </launch>

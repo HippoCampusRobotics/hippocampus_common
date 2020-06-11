@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="hippocampus_common" type="tf_pose_ros_to_px4_node" name="tf_pose_ros_to_px4_node" output="screen" />
+</launch>
