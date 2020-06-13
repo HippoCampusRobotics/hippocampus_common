@@ -18,7 +18,7 @@
     </include>
 
     <!-- spawn the tank with the april tags at the bottom -->
-    <arg name="tank_sdf" value="$(find px4)/Tools/sitl_gazebo/models/uuv_apriltag_tank/model.sdf" />
+    <arg name="tank_sdf" value="$(find hippocampus_sim)/models/uuv_apriltag_tank/model.sdf" />
     <node name="spawner" pkg="gazebo_ros" type="spawn_model" args="-sdf -f $(arg tank_sdf) -model uuv_apriltag_tank -x 1.62 -y 3.27431 -Y 3.1415" />
 
     <!-- use the group tag to launch nodes in a namespace -->
@@ -27,7 +27,7 @@
         <arg name="ID" value="0" />
         <arg name="fcu_url" default="udp://:14540@localhost:14580" />
         <!-- PX4 SITL and vehicle spawn -->
-        <include file="$(find px4)/launch/single_vehicle_spawn_sdf.launch">
+        <include file="$(find hippocampus_sim)/launch/spawn_uuv_hippocampus.launch">
             <arg name="x" value="0.3" />
             <arg name="y" value="0.3" />
             <arg name="z" value="0" />
