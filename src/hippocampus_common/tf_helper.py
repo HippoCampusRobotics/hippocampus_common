@@ -14,6 +14,7 @@ class TfHelper(object):
         self._base_link_frd_id = None
         self._camera_frame_id = None
         self._camera_link_id = None
+        self._barometer_link_id = None
 
         self._base_link_flu_to_frd_static_tf = None
         self._base_link_frd_to_flu_static_tf = None
@@ -34,6 +35,10 @@ class TfHelper(object):
         default = os.path.join(rospy.get_namespace(), "camera_frame")
         return Node.get_param("~camera_frame", default)
 
+    def _get_barometer_link_id(self):
+        default = os.path.join(rospy.get_namespace(), "barometer_link")
+        return Node.get_param("~barometer_link", default)
+
     def get_base_link_id(self):
         if not self._base_link_id:
             self._base_link_id = self._get_base_link_id()
@@ -53,6 +58,11 @@ class TfHelper(object):
         if not self._camera_frame_id:
             self._camera_frame_id = self._get_camera_frame_id()
         return self._camera_frame_id
+
+    def get_barometer_link_id(self):
+        if not self._barometer_link_id:
+            self._barometer_link_id = self._get_barometer_link_id()
+        return self._barometer_link_id
 
     def _get_base_link_flu_to_frd_tf(self):
         transform = self.tf_buffer.lookup_transform(

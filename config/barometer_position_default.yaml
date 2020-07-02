@@ -1,0 +1,5 @@
+# Frame convention following ROS/Gazebo
+barometer:
+  x: 0
+  y: 0
+  z: -0.05
