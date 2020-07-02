@@ -20,6 +20,7 @@ class TfPublisherNode(Node):
         self._camera_link_tf = None
         self._camera_frame_tf = None
         self._base_link_flu_to_frd_tf = None
+        self._barometer_tf = None
 
         self.broadcast_static_tf()
 
@@ -35,7 +36,9 @@ class TfPublisherNode(Node):
         link = self.get_camera_link_transform()
         frame = self.get_camera_frame_transform()
         base_flu_to_frd = self.tf_helper.get_base_link_flu_to_frd_tf()
-        self.camera_broadcaster.sendTransform([link, frame, base_flu_to_frd])
+        baro = self.get_barometer_transform()
+        self.camera_broadcaster.sendTransform(
+            [link, frame, base_flu_to_frd, baro])
 
     def broadcast_base_link_tf(self, pose):
         transform = TransformStamped()
@@ -96,6 +99,31 @@ class TfPublisherNode(Node):
         if not self._camera_frame_tf:
             self._camera_frame_tf = self._get_camera_frame_transform()
         return self._camera_frame_tf
+
+    def _get_barometer_transform(self):
+
+        pos_x = Node.get_param("~barometer/x", 0.0)
+        pos_y = Node.get_param("~barometer/y", 0.0)
+        pos_z = Node.get_param("~barometer/z", 0.0)
+
+        transform = TransformStamped()
+        transform.header.stamp = rospy.Time.now()
+        transform.header.frame_id = self.tf_helper.get_base_link_id()
+        transform.child_frame_id = self.tf_helper.get_barometer_link_id()
+
+        transform.transform.translation = Vector3(x=pos_x, y=pos_y, z=pos_z)
+        quat = tf.transformations.quaternion_from_euler(0, 0, 0)
+        transform.transform.rotation = Quaternion(x=quat[0],
+                                                  y=quat[1],
+                                                  z=quat[2],
+                                                  w=quat[3])
+
+        return transform
+
+    def get_barometer_transform(self):
+        if not self._barometer_tf:
+            self._barometer_tf = self._get_barometer_transform()
+        return self._barometer_tf
 
 
 def main():
