@@ -5,7 +5,7 @@
     <!-- gazebo configs -->
     <arg name="gui" default="true" />
     <arg name="debug" default="false" />
-    <arg name="verbose" default="false" />
+    <arg name="verbose" default="true" />
     <arg name="paused" default="false" />
 
     <!-- start gazebo with the specified world -->
