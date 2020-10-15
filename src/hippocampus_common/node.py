@@ -24,7 +24,7 @@ class Node(object):
         rospy.loginfo("[{}] Shutting down...".format(rospy.get_name()))
 
     @staticmethod
-    def get_param(name, default, verbose=True, limit=80 * 5):
+    def get_param(name, default=None, verbose=True, limit=80 * 5):
         """Get a parameter from the ROS parameter server.
 
         Logs a warning if parameter does not exist sets the default value
@@ -47,6 +47,9 @@ class Node(object):
             param = default
             rospy.logwarn("[{}] Parameter '{}' does not exist.".format(
                 rospy.get_name(), name))
+            if default is None:
+                rospy.logwarn("[{}] No default value given for parameter '{}', unexpected behaviour possible.".format(
+                    rospy.get_name(), name))
         finally:
             if verbose:
                 param_string = "{}".format(param)
