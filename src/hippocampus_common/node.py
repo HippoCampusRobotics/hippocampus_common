@@ -24,7 +24,7 @@ class Node(object):
         rospy.loginfo("[{}] Shutting down...".format(rospy.get_name()))
 
     @staticmethod
-    def get_param(name, default):
+    def get_param(name, default, verbose=True, limit=80 * 5):
         """Get a parameter from the ROS parameter server.
 
         Logs a warning if parameter does not exist sets the default value
@@ -33,6 +33,9 @@ class Node(object):
         Args:
             name (str): Name of the parameter.
             default : Default value to be used if parameter does not exist.
+            verbose: Log parameter values
+            limit: Limit the length of the printed parameter value to specified
+                   number of characters if > 0.
         Returns:
             [XmlRpcLegalType]: Either the read parameter or the default value if
                 it does not exist.
@@ -45,5 +48,27 @@ class Node(object):
             rospy.logwarn("[{}] Parameter '{}' does not exist.".format(
                 rospy.get_name(), name))
         finally:
-            rospy.loginfo("[{}] {}={}".format(rospy.get_name(), name, param))
+            if verbose:
+                param_string = "{}".format(param)
+                if limit > 0 and len(param_string) > limit:
+                    param_string = param_string[:limit] + "..."
+                rospy.loginfo("[{}] {}={}".format(rospy.get_name(), name,
+                                                  param_string))
         return param
+
+    @staticmethod
+    def set_param(name, value, verbose=True, limit=80 * 5):
+        """Set parameter verbosly.
+
+        Args:
+            name (str): Name of the parameter.
+            value : Value of the parameter that is set.
+            verbose: Log parameter values.
+            limit: Limit the length of the printed parameter value to specified
+                   number of characters if > 0.
+        """
+        rospy.set_param(name, value)
+        value_string = "{}".format(value)
+        if limit > 0 and len(value_string) > limit:
+            value_string = value_string[:limit] + "..."
+        rospy.loginfo("[{}] {}={}".format(rospy.get_name(), name, value_string))
