@@ -48,8 +48,9 @@ class Node(object):
             rospy.logwarn("[{}] Parameter '{}' does not exist.".format(
                 rospy.get_name(), name))
             if default is None:
-                rospy.logwarn("[{}] No default value given for parameter '{}', unexpected behaviour possible.".format(
-                    rospy.get_name(), name))
+                rospy.logwarn(
+                    "[{}] No default value given for parameter '{}', unexpected"
+                    " behaviour possible.".format(rospy.get_name(), name))
         finally:
             if verbose:
                 param_string = "{}".format(param)
