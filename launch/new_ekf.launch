@@ -1,0 +1,91 @@
+<launch>
+    <arg name="est" default="ekf2" />
+    <arg name="vehicle" default="uuv_hippocampus" />
+    <arg name="world" default="$(find mavlink_sitl_gazebo)/worlds/uuv_hippocampus.world" />
+    <!-- gazebo configs -->
+    <arg name="gui" default="true" />
+    <arg name="debug" default="false" />
+    <arg name="verbose" default="true" />
+    <arg name="paused" default="false" />
+    <arg name="x" default="0.3" />
+    <arg name="y" default="0.3" />
+    <arg name="z" default="0.0" />
+    <arg name="Y" default="1.57" />
+    <arg name="P" default="0.0" />
+    <arg name="R" default="0.0" />
+    <arg name="without_px4" default="false" />
+    <arg name="less_tags" default="false" />
+    <arg name="process_model" default="simple" />
+
+    <!-- start gazebo with the specified world -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="gui" value="$(arg gui)" />
+        <arg name="world_name" value="$(arg world)" />
+        <arg name="debug" value="$(arg debug)" />
+        <arg name="verbose" value="$(arg verbose)" />
+        <arg name="paused" value="$(arg paused)" />
+    </include>
+
+    <!-- spawn the tank with the april tags at the bottom -->
+    <arg name="tank_sdf" value="$(find hippocampus_sim)/models/uuv_apriltag_tank/model.sdf" />
+    <node name="spawner" pkg="gazebo_ros" type="spawn_model" args="-sdf -f $(arg tank_sdf) -model uuv_apriltag_tank -x 1.62 -y 3.27431 -Y 3.1415" />
+
+    <!-- use the group tag to launch nodes in a namespace -->
+    <group ns="uuv00">
+        <!-- MAVROS and vehicle configs -->
+        <arg name="ID" value="0" />
+        <arg name="fcu_url" default="udp://:14540@localhost:14580" />
+
+        <group if="$(arg without_px4)">
+            <!-- vehicle spawn without px4 -->
+            <include file="$(find hippocampus_sim)/launch/spawn_uuv_hippocampus_without_px4.launch">
+                <arg name="x" value="$(arg x)" />
+                <arg name="y" value="$(arg y)" />
+                <arg name="z" value="$(arg z)" />
+                <arg name="R" value="$(arg R)" />
+                <arg name="P" value="$(arg P)" />
+                <arg name="Y" value="$(arg Y)" />
+                <arg name="vehicle" value="$(arg vehicle)" />
+                <arg name="mavlink_udp_port" value="14560" />
+                <arg name="mavlink_tcp_port" value="4560" />
+                <arg name="ID" value="$(arg ID)" />
+            </include>
+        </group>
+
+        <group unless="$(arg without_px4)">
+            <!-- PX4 SITL and vehicle spawn -->
+            <include file="$(find hippocampus_sim)/launch/spawn_uuv_hippocampus.launch">
+                <arg name="x" value="$(arg x)" />
+                <arg name="y" value="$(arg y)" />
+                <arg name="z" value="$(arg z)" />
+                <arg name="R" value="$(arg R)" />
+                <arg name="P" value="$(arg P)" />
+                <arg name="Y" value="$(arg Y)" />
+                <arg name="vehicle" value="$(arg vehicle)" />
+                <arg name="mavlink_udp_port" value="14560" />
+                <arg name="mavlink_tcp_port" value="4560" />
+                <arg name="ID" value="$(arg ID)" />
+            </include>
+        </group>
+
+        <!-- MAVROS -->
+        <include file="$(find mavros)/launch/px4.launch">
+            <arg name="fcu_url" value="$(arg fcu_url)" />
+            <arg name="gcs_url" value="" />
+            <arg name="tgt_system" value="$(eval 1 + arg('ID'))" />
+            <arg name="tgt_component" value="1" />
+        </include>
+
+        <include file="$(find hippocampus_common)/launch/tf_publisher.launch"></include>
+        <include file="$(find hippocampus_common)/launch/tf_pose_ros_to_px4.launch"></include>
+
+        <include file="$(find hippocampus_common)/launch/ground_truth_twist_to_body.launch"></include>
+
+        <include file="$(find mu_auv_localization)/launch/new_ekf_test_gazebo.launch">
+            <arg name="ns" value="uuv00" />
+            <arg name="less_tags" value="$(arg less_tags)" />
+            <arg name="process_model" value="$(arg process_model)" />
+        </include>
+
+    </group>
+</launch>

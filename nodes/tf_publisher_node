@@ -2,6 +2,7 @@
 
 import rospy
 from geometry_msgs.msg import PoseStamped, Quaternion, TransformStamped, Vector3
+from nav_msgs.msg import Odometry
 import tf.transformations
 import tf2_ros
 from hippocampus_common.node import Node
@@ -29,8 +30,16 @@ class TfPublisherNode(Node):
                          self.pose_callback,
                          queue_size=1)
 
+        rospy.Subscriber("ground_truth/state",
+                         Odometry,
+                         self.ground_truth_odom_callback,
+                         queue_size=1)
+
     def pose_callback(self, pose):
         self.broadcast_base_link_tf(pose)
+
+    def ground_truth_odom_callback(self, odom_msg):
+        self.broadcast_base_link_ground_truth_tf(odom_msg)
 
     def broadcast_static_tf(self):
         link = self.get_camera_link_transform()
@@ -46,6 +55,16 @@ class TfPublisherNode(Node):
         transform.transform.rotation = pose.pose.orientation
         transform.header = pose.header
         transform.child_frame_id = self.tf_helper.get_base_link_id()
+
+        self.tf_broadcaster.sendTransform(transform)
+
+    def broadcast_base_link_ground_truth_tf(self, odom_msg):
+        transform = TransformStamped()
+        transform.transform.translation = odom_msg.pose.pose.position
+        transform.transform.rotation = odom_msg.pose.pose.orientation
+        transform.header = odom_msg.header
+        transform.child_frame_id = \
+            self.tf_helper.get_base_link_ground_truth_id()
 
         self.tf_broadcaster.sendTransform(transform)
 
