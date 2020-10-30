@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+The twist ground truth provided by this plugin
+https://github.com/ros-simulation/gazebo_ros_pkgs/blob/melodic-devel/gazebo_plugins/src/gazebo_ros_p3d.cpp
+doesn't provide the twist data in the (ground truth) base_link frame.
+This node transforms the twist msg to the base_link_ground_truth frame
+and publishes it.
+"""
+import rospy
+from geometry_msgs.msg import TwistStamped
+from nav_msgs.msg import Odometry
+
+from hippocampus_common.tf_helper import TfHelper
+from hippocampus_common import node
+
+
+class GroundTruthTransformerNode(node.Node):
+    def __init__(self):
+        super(GroundTruthTransformerNode,
+              self).__init__("ground_truth_twist_to_body_node")
+
+        self.tf_helper = TfHelper()
+        self.twist_publisher = rospy.Publisher("ground_truth/twist_body_frame",
+                                               TwistStamped,
+                                               queue_size=1)
+        rospy.Subscriber("ground_truth/state",
+                         Odometry,
+                         self.odom_callback,
+                         queue_size=1)
+
+    def odom_callback(self, odom_msg):
+        twist_map = TwistStamped()
+        twist_map.twist = odom_msg.twist.twist
+
+        # transform twist to body frame
+        twist = self.tf_helper.twist_ground_truth_to_body_frame(twist_map)
+
+        # fill out pose header stamp with same time as odom_msg
+        twist.header.stamp = odom_msg.header.stamp
+        # add correct frame id
+        twist.header.frame_id = self.tf_helper.get_base_link_ground_truth_id()
+
+        # publish the message of the transformed twist
+        self.twist_publisher.publish(twist)
+
+
+def main():
+    """
+    Entrypoint of this script.
+    """
+    ros_node = GroundTruthTransformerNode()
+    ros_node.run()
+
+
+if __name__ == "__main__":
+    main()
