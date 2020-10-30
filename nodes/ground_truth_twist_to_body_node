@@ -34,7 +34,7 @@ class GroundTruthTransformerNode(node.Node):
         twist_map.twist = odom_msg.twist.twist
 
         # transform twist to body frame
-        twist = self.tf_helper.twist_ground_truth_to_body_frame(twist_map)
+        twist = self.tf_helper.twist_ground_truth_map_to_body_frame(twist_map)
 
         # fill out pose header stamp with same time as odom_msg
         twist.header.stamp = odom_msg.header.stamp

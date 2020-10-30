@@ -20,6 +20,7 @@ class TfHelper(object):
 
         self._base_link_flu_to_frd_static_tf = None
         self._base_link_frd_to_flu_static_tf = None
+        self._camera_frame_to_base_link_static_tf = None
 
     def _get_base_link_id(self):
         default = os.path.join(rospy.get_namespace(), "base_link").strip("/")
@@ -101,6 +102,14 @@ class TfHelper(object):
         transform.header.frame_id = self.get_base_link_frd_id()
         return transform
 
+    def _get_camera_frame_to_base_link_tf(self):
+        transform = self.tf_buffer.lookup_transform(
+            target_frame=self.get_base_link_id(),
+            source_frame=self.get_camera_frame_id(),
+            time=rospy.Time(),
+            timeout=rospy.Duration(60))
+        return transform
+
     def get_base_link_flu_to_frd_tf(self):
         if not self._base_link_flu_to_frd_static_tf:
             self._base_link_flu_to_frd_static_tf = \
@@ -113,7 +122,13 @@ class TfHelper(object):
                 self._get_base_link_frd_to_flu_tf()
         return self._base_link_frd_to_flu_static_tf
 
-    def get_map_to_base_link_ground_truth(self):
+    def get_camera_frame_to_base_link_tf(self):
+        if not self._camera_frame_to_base_link_static_tf:
+            self._camera_frame_to_base_link_static_tf = \
+                self._get_camera_frame_to_base_link_tf()
+        return self._camera_frame_to_base_link_static_tf
+
+    def get_map_to_base_link_ground_truth_tf(self):
         transform = self.tf_buffer.lookup_transform(
             target_frame=self.get_base_link_ground_truth_id(),
             source_frame="map",
@@ -162,8 +177,8 @@ class TfHelper(object):
         pose.pose.position.z += translation.z
         return pose
 
-    def twist_ground_truth_to_body_frame(self, twist):
-        transform = self.get_map_to_base_link_ground_truth()
+    def twist_ground_truth_map_to_body_frame(self, twist):
+        transform = self.get_map_to_base_link_ground_truth_tf()
 
         # only apply rotation to twist
         rotation = transform.transform.rotation
