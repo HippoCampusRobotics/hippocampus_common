@@ -4,7 +4,11 @@ project(hippocampus_common)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   roscpp
-  pyquaternion
+  tf2
+  tf2_geometry_msgs
+  tf
+  geometry_msgs
+  nav_msgs
 )
 
 catkin_python_setup()
