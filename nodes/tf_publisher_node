@@ -86,7 +86,6 @@ class TfPublisherNode(Node):
         transform = TransformStamped()
         transform.header.stamp = rospy.Time.now()
         transform.header.frame_id = self.tf_helper.get_base_link_id()
-        rospy.logerr(transform.header.frame_id)
         transform.child_frame_id = self.tf_helper.get_camera_link_id()
 
         transform.transform.translation = Vector3(x=pos_x, y=pos_y, z=pos_z)
