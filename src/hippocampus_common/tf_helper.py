@@ -3,7 +3,13 @@ import numpy as np
 import rospy
 import tf2_ros
 import tf.transformations
+from geometry_msgs.msg import TransformStamped, Quaternion
+import math
 from hippocampus_common.node import Node
+
+Q_NED_ENU = tf.transformations.quaternion_from_euler(math.pi, 0.0,
+                                                     math.pi / 2.0)
+Q_FRD_FLU = tf.transformations.quaternion_from_euler(math.pi, 0.0, 0.0)
 
 
 class TfHelper(object):
@@ -81,23 +87,16 @@ class TfHelper(object):
         return self._barometer_link_id
 
     def _get_base_link_flu_to_frd_tf(self):
-        transform = self.tf_buffer.lookup_transform(
-            target_frame="base_link_frd",
-            source_frame="base_link",
-            time=rospy.Time(0),
-            timeout=rospy.Duration(60))
-
+        transform = TransformStamped()
+        q = tf.transformations.quaternion_inverse(Q_FRD_FLU)
+        transform.transform.rotation = Quaternion(*q)
         transform.child_frame_id = self.get_base_link_frd_id()
         transform.header.frame_id = self.get_base_link_id()
         return transform
 
     def _get_base_link_frd_to_flu_tf(self):
-        transform = self.tf_buffer.lookup_transform(
-            target_frame="base_link",
-            source_frame="base_link_frd",
-            time=rospy.Time(0),
-            timeout=rospy.Duration(60))
-
+        transform = TransformStamped()
+        transform.transform.rotation = Quaternion(*Q_FRD_FLU)
         transform.child_frame_id = self.get_base_link_id()
         transform.header.frame_id = self.get_base_link_frd_id()
         return transform
@@ -107,7 +106,7 @@ class TfHelper(object):
             target_frame=self.get_base_link_id(),
             source_frame=self.get_camera_frame_id(),
             time=rospy.Time(),
-            timeout=rospy.Duration(60))
+            timeout=rospy.Duration(10))
         return transform
 
     def get_base_link_flu_to_frd_tf(self):
