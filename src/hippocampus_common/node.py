@@ -6,13 +6,19 @@ import rospy
 class Node(object):
     """A basic node class to start off with, when implementing a ROS node.
     """
-    def __init__(self, name):
+    def __init__(self, name, anonymous=False, disable_signals=False):
         """Initializes a ROS node by calling `rospy.init_node`.
 
         Args:
             name (str): Name of the node.
+            anonymous (bool, optional): If true a random number is appended to
+                the node's name. Defaults to False.
+            disable_signals (bool, optional): ROS handles ctrl+c if set to
+                false. Defaults to False.
         """
-        rospy.init_node(name)
+        rospy.init_node(name,
+                        anonymous=anonymous,
+                        disable_signals=disable_signals)
         rospy.loginfo("[{}] Initialized.".format(rospy.get_name()))
 
     def run(self):
