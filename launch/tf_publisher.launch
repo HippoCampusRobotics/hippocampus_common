@@ -3,7 +3,6 @@
     <arg name="camera_pose_config" default="camera_pose_default.yaml" />
 
     <node pkg="hippocampus_common" type="tf_publisher_node" name="tf_publisher_node" clear_params="true" output="screen">
-        <param name="calibration" type="str" value="gazebo" /> <!-- either gazebo or water_tank -->
         <rosparam command="load" file="$(find hippocampus_common)/config/$(arg camera_pose_config)" />
     </node>
 </launch>
