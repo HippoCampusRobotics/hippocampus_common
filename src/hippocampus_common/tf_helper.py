@@ -135,21 +135,33 @@ class TfHelper(object):
         return transform
 
     def _get_front_camera_frame_to_base_link_tf(self):
-        # TODO: check if transform exists!!
-        transform = self.tf_buffer.lookup_transform(
-            target_frame=self.get_base_link_id(),
-            source_frame=self.get_front_camera_frame_id(),
-            time=rospy.Time(0),
-            timeout=rospy.Duration(10))
+        if self.tf_buffer.can_transform(self.get_base_link_id(),
+                                        self.get_front_camera_frame_id()):
+            transform = self.tf_buffer.lookup_transform(
+                target_frame=self.get_base_link_id(),
+                source_frame=self.get_front_camera_frame_id(),
+                time=rospy.Time(0),
+                timeout=rospy.Duration(10))
+        else:
+            rospy.logerr(
+                "[{}] Transform from front camera to base link not found. \
+                    Check if correct vehicle type and camera name."
+                .format(rospy.get_name()))
         return transform
 
     def _get_vertical_camera_frame_to_base_link_tf(self):
-        # TODO: check if transform exists!!
-        transform = self.tf_buffer.lookup_transform(
-            target_frame=self.get_base_link_id(),
-            source_frame=self.get_vertical_camera_frame_id(),
-            time=rospy.Time(0),
-            timeout=rospy.Duration(10))
+        if self.tf_buffer.can_transform(self.get_base_link_id(),
+                                        self.get_vertical_camera_frame_id()):
+            transform = self.tf_buffer.lookup_transform(
+                target_frame=self.get_base_link_id(),
+                source_frame=self.get_vertical_camera_frame_id(),
+                time=rospy.Time(0),
+                timeout=rospy.Duration(10))
+        else:
+            rospy.logerr(
+                "[{}] Transform from vertical camera to base link not found. \
+                    Check if correct vehicle type and camera name."
+                .format(rospy.get_name()))
         return transform
 
     def get_base_link_flu_to_frd_tf(self):
