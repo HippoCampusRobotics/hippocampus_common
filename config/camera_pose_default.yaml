@@ -1,8 +1,0 @@
-# Frame convention following ROS/Gazebo
-camera:
-  x: 0.13
-  y: 0.0
-  z: -0.03
-  roll: 0.0
-  pitch: 1.57
-  yaw: 0.0

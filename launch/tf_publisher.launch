@@ -1,8 +1,11 @@
 <launch>
-    <!-- specifies a camera pose config file that contains the camera pose information of your specific vehicle -->
-    <arg name="camera_pose_config" default="camera_pose_default.yaml" />
+    <arg name="vehicle_name" default="uuv00" />
+    <arg name="vehicle_type" default="hippocampus" />  <!-- either "hippocampus" or "bluerov"-->
+    <arg name="sensor_pose_config_file" default="$(arg vehicle_type)_sensor_poses_default.yaml"/>
 
     <node pkg="hippocampus_common" type="tf_publisher_node" name="tf_publisher_node" clear_params="true" output="screen">
-        <rosparam command="load" file="$(find hippocampus_common)/config/$(arg camera_pose_config)" />
+        <rosparam command="load" file="$(find hippocampus_common)/config/$(arg sensor_pose_config_file)" />
+        <param name="vehicle_name" value="$(arg vehicle_name)"/>
+        <param name="vehicle_type" value="$(arg vehicle_type)"/>
     </node>
 </launch>

@@ -1,0 +1,25 @@
+# Default sensor poses for BlueROV
+# These values still need to be measured/calibrated
+
+# Frame convention following ROS/Gazebo
+front_camera:
+  x: 0.0
+  y: 0.0
+  z: 0.0
+  roll: 0.0
+  pitch: 0.0
+  yaw: 0.0
+
+vertical_camera:
+  x: 0.0
+  y: 0.0
+  z: 0.0
+  roll: 0.0
+  pitch: 1.57
+  yaw: 0.0
+  
+# Frame convention following ROS/Gazebo
+barometer:
+  x: 0
+  y: 0
+  z: -0.05
