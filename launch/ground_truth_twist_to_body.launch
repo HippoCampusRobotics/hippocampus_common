@@ -1,3 +1,0 @@
-<launch>
-    <node pkg="hippocampus_common" type="ground_truth_twist_to_body_node" name="ground_truth_twist_to_body_node" output="screen" />
-</launch>
