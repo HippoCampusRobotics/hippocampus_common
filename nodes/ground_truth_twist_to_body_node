@@ -6,6 +6,8 @@ https://github.com/ros-simulation/gazebo_ros_pkgs/blob/melodic-devel/gazebo_plug
 doesn't provide the twist data in the (ground truth) base_link frame.
 This node transforms the twist msg to the base_link_ground_truth frame
 and publishes it.
+
+DEPRECATED, MOVED TO TFPUBLISHER NODE
 """
 import rospy
 from geometry_msgs.msg import TwistStamped
@@ -20,7 +22,7 @@ class GroundTruthTransformerNode(node.Node):
         super(GroundTruthTransformerNode,
               self).__init__("ground_truth_twist_to_body_node")
 
-        self.tf_helper = TfHelper()
+        self.tf_helper = TfHelper(rospy.get_param('~vehicle_name', 'uuv00'))
         self.twist_publisher = rospy.Publisher("ground_truth/twist_body_frame",
                                                TwistStamped,
                                                queue_size=1)

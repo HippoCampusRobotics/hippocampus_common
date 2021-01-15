@@ -1,3 +1,7 @@
 <launch>
-    <node pkg="hippocampus_common" type="tf_pose_ros_to_px4_node" name="tf_pose_ros_to_px4_node" output="screen" />
+    <arg name="vehicle_name" default="uuv00"/>
+    
+    <node pkg="hippocampus_common" type="tf_pose_ros_to_px4_node" name="tf_pose_ros_to_px4_node" clear_params="true" output="screen">   
+        <rosparam name="vehicle_name" value="$(arg vehicle_name)"/>
+    </node>
 </launch>

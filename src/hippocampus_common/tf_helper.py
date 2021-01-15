@@ -1,3 +1,11 @@
+"""
+Collection of helper functions for coordinate transformation management for any
+node *within one vehicle*
+
+This node doesn't actually publish any tf data, the tfPublisher defines and
+publishes the transforms between different frames within one vehicle.
+"""
+
 import os
 import numpy as np
 import rospy
@@ -13,46 +21,60 @@ Q_FRD_FLU = tf.transformations.quaternion_from_euler(math.pi, 0.0, 0.0)
 
 
 class TfHelper(object):
-    def __init__(self):
+    def __init__(self, vehicle_name):
         self.tf_buffer = tf2_ros.Buffer(rospy.Duration(10))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
+        self.id_prefix = vehicle_name
         self._base_link_id = None
         self._base_link_frd_id = None
         self._base_link_ground_truth_id = None
-        self._camera_frame_id = None
-        self._camera_link_id = None
+        self._front_camera_frame_id = None
+        self._vertical_camera_frame_id = None
+        self._front_camera_link_id = None
+        self._vertical_camera_link_id = None
         self._barometer_link_id = None
 
         self._base_link_flu_to_frd_static_tf = None
         self._base_link_frd_to_flu_static_tf = None
-        self._camera_frame_to_base_link_static_tf = None
+        self._vertical_camera_frame_to_base_link_static_tf = None
+        self._front_camera_frame_to_base_link_static_tf = None
 
     def _get_base_link_id(self):
-        default = os.path.join(rospy.get_namespace(), "base_link").strip("/")
+        default = os.path.join(self.id_prefix, "base_link").strip("/")
         return Node.get_param("~base_link", default)
 
     def _get_base_link_frd_id(self):
-        default = os.path.join(rospy.get_namespace(),
-                               "base_link_frd").strip("/")
+        default = os.path.join(self.id_prefix, "base_link_frd").strip("/")
         return Node.get_param("~base_link_frd", default)
 
     def _get_base_link_ground_truth_id(self):
-        default = os.path.join(rospy.get_namespace(),
+        default = os.path.join(self.id_prefix,
                                "base_link_ground_truth").strip("/")
         return Node.get_param("~base_link_ground_truth", default)
 
-    def _get_camera_link_id(self):
-        default = os.path.join(rospy.get_namespace(), "camera_link").strip("/")
-        return Node.get_param("~camera_link", default)
+    def _get_front_camera_link_id(self):
+        default = os.path.join(self.id_prefix,
+                               "front_camera/camera_link").strip("/")
+        return Node.get_param("~front_camera_link", default)
 
-    def _get_camera_frame_id(self):
-        default = os.path.join(rospy.get_namespace(), "camera_frame").strip("/")
-        return Node.get_param("~camera_frame", default)
+    def _get_front_camera_frame_id(self):
+        default = os.path.join(self.id_prefix,
+                               "front_camera/camera_frame").strip("/")
+        return Node.get_param("~front_camera_frame", default)
+
+    def _get_vertical_camera_link_id(self):
+        default = os.path.join(self.id_prefix,
+                               "vertical_camera/camera_link").strip("/")
+        return Node.get_param("~vertical_camera_link", default)
+
+    def _get_vertical_camera_frame_id(self):
+        default = os.path.join(self.id_prefix,
+                               "vertical_camera/camera_frame").strip("/")
+        return Node.get_param("~vertical_camera_frame", default)
 
     def _get_barometer_link_id(self):
-        default = os.path.join(rospy.get_namespace(),
-                               "barometer_link").strip("/")
+        default = os.path.join(self.id_prefix, "barometer_link").strip("/")
         return Node.get_param("~barometer_link", default)
 
     def get_base_link_id(self):
@@ -71,15 +93,26 @@ class TfHelper(object):
                 self._get_base_link_ground_truth_id()
         return self._base_link_ground_truth_id
 
-    def get_camera_link_id(self):
-        if not self._camera_link_id:
-            self._camera_link_id = self._get_camera_link_id()
-        return self._camera_link_id
+    def get_front_camera_link_id(self):
+        if not self._front_camera_link_id:
+            self._front_camera_link_id = self._get_front_camera_link_id()
+        return self._front_camera_link_id
 
-    def get_camera_frame_id(self):
-        if not self._camera_frame_id:
-            self._camera_frame_id = self._get_camera_frame_id()
-        return self._camera_frame_id
+    def get_front_camera_frame_id(self):
+        if not self._front_camera_frame_id:
+            self._front_camera_frame_id = self._get_front_camera_frame_id()
+        return self._front_camera_frame_id
+
+    def get_vertical_camera_link_id(self):
+        if not self._vertical_camera_link_id:
+            self._vertical_camera_link_id = self._get_vertical_camera_link_id()
+        return self._vertical_camera_link_id
+
+    def get_vertical_camera_frame_id(self):
+        if not self._vertical_camera_frame_id:
+            self._vertical_camera_frame_id = self._get_vertical_camera_frame_id(
+            )
+        return self._vertical_camera_frame_id
 
     def get_barometer_link_id(self):
         if not self._barometer_link_id:
@@ -101,11 +134,21 @@ class TfHelper(object):
         transform.header.frame_id = self.get_base_link_frd_id()
         return transform
 
-    def _get_camera_frame_to_base_link_tf(self):
+    def _get_front_camera_frame_to_base_link_tf(self):
+        # TODO: check if transform exists!!
         transform = self.tf_buffer.lookup_transform(
             target_frame=self.get_base_link_id(),
-            source_frame=self.get_camera_frame_id(),
-            time=rospy.Time(),
+            source_frame=self.get_front_camera_frame_id(),
+            time=rospy.Time(0),
+            timeout=rospy.Duration(10))
+        return transform
+
+    def _get_vertical_camera_frame_to_base_link_tf(self):
+        # TODO: check if transform exists!!
+        transform = self.tf_buffer.lookup_transform(
+            target_frame=self.get_base_link_id(),
+            source_frame=self.get_vertical_camera_frame_id(),
+            time=rospy.Time(0),
             timeout=rospy.Duration(10))
         return transform
 
@@ -121,11 +164,29 @@ class TfHelper(object):
                 self._get_base_link_frd_to_flu_tf()
         return self._base_link_frd_to_flu_static_tf
 
-    def get_camera_frame_to_base_link_tf(self):
-        if not self._camera_frame_to_base_link_static_tf:
-            self._camera_frame_to_base_link_static_tf = \
-                self._get_camera_frame_to_base_link_tf()
-        return self._camera_frame_to_base_link_static_tf
+    def get_front_camera_frame_to_base_link_tf(self):
+        if not self._front_camera_frame_to_base_link_static_tf:
+            self._front_camera_frame_to_base_link_static_tf = \
+                self._get_front_camera_frame_to_base_link_tf()
+        return self._front_camera_frame_to_base_link_static_tf
+
+    def get_vertical_camera_frame_to_base_link_tf(self):
+        if not self._vertical_camera_frame_to_base_link_static_tf:
+            self._vertical_camera_frame_to_base_link_static_tf = \
+                self._get_vertical_camera_frame_to_base_link_tf()
+        return self._vertical_camera_frame_to_base_link_static_tf
+
+    def get_camera_frame_to_base_link_tf(self, camera_name):
+        # use this when a node potentially works with any camera.
+        # for now, all camera names need to be hardcoded here
+        if camera_name == "front_camera":
+            return self.get_front_camera_frame_to_base_link_tf()
+        elif camera_name == "vertical_camera":
+            return self.get_vertical_camera_frame_to_base_link_tf()
+        else:
+            rospy.logerr("[{}] Specified camera_name does not exist. \
+                    No transform found!".format(rospy.get_name()))
+            exit(-1)
 
     def get_map_to_base_link_ground_truth_tf(self):
         transform = self.tf_buffer.lookup_transform(
