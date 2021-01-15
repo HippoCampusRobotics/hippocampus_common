@@ -136,7 +136,8 @@ class TfHelper(object):
 
     def _get_front_camera_frame_to_base_link_tf(self):
         if self.tf_buffer.can_transform(self.get_base_link_id(),
-                                        self.get_front_camera_frame_id()):
+                                        self.get_front_camera_frame_id(),
+                                        rospy.Time()):
             transform = self.tf_buffer.lookup_transform(
                 target_frame=self.get_base_link_id(),
                 source_frame=self.get_front_camera_frame_id(),
@@ -151,7 +152,8 @@ class TfHelper(object):
 
     def _get_vertical_camera_frame_to_base_link_tf(self):
         if self.tf_buffer.can_transform(self.get_base_link_id(),
-                                        self.get_vertical_camera_frame_id()):
+                                        self.get_vertical_camera_frame_id(),
+                                        rospy.Time()):
             transform = self.tf_buffer.lookup_transform(
                 target_frame=self.get_base_link_id(),
                 source_frame=self.get_vertical_camera_frame_id(),
@@ -204,7 +206,7 @@ class TfHelper(object):
         transform = self.tf_buffer.lookup_transform(
             target_frame=self.get_base_link_ground_truth_id(),
             source_frame="map",
-            time=rospy.Time(0),
+            time=rospy.Time(),
             timeout=rospy.Duration(1))
 
         transform.child_frame_id = self.get_base_link_ground_truth_id()
