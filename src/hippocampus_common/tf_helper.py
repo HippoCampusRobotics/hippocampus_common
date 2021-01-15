@@ -145,8 +145,8 @@ class TfHelper(object):
         else:
             rospy.logerr(
                 "[{}] Transform from front camera to base link not found. \
-                    Check if correct vehicle type and camera name."
-                .format(rospy.get_name()))
+                    Check if correct vehicle type and camera name.".format(
+                    rospy.get_name()))
         return transform
 
     def _get_vertical_camera_frame_to_base_link_tf(self):
@@ -160,8 +160,8 @@ class TfHelper(object):
         else:
             rospy.logerr(
                 "[{}] Transform from vertical camera to base link not found. \
-                    Check if correct vehicle type and camera name."
-                .format(rospy.get_name()))
+                    Check if correct vehicle type and camera name.".format(
+                    rospy.get_name()))
         return transform
 
     def get_base_link_flu_to_frd_tf(self):
