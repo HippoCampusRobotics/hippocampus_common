@@ -21,7 +21,7 @@ class TfNode(node.Node):
     def __init__(self):
         super(TfNode, self).__init__("tf_pose_to_ned_node")
 
-        self.tf_helper = TfHelper(rospy.get_param('~vehicle_name', 'uuv00'))
+        self.tf_helper = TfHelper(rospy.get_param("~vehicle_name", "uuv00"))
 
         self.pose_publisher = rospy.Publisher("pose_px4",
                                               PoseStamped,
