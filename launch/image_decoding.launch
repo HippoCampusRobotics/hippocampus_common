@@ -1,0 +1,7 @@
+<launch>
+    <arg name="camera_name" doc="Typically 'vertical_camera' or 'front_camera'." />
+    <arg name="input_base_topic" default="image_raw" />
+    <arg name="output_topic" default="image_raw" />
+    <arg name="args" value="compressed in:=$(arg input_base_topic) raw out:=$(arg output_topic)" />
+    <node ns="$(arg camera_name)" name="image_decoder" pkg="image_transport" type="republish" args="$(arg args)" />
+</launch>
