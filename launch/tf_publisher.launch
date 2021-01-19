@@ -1,6 +1,6 @@
 <launch>
-    <arg name="vehicle_name" default="uuv00" />
-    <arg name="vehicle_type" default="hippocampus" />  <!-- either "hippocampus" or "bluerov"-->
+    <arg name="vehicle_name" doc="Something like 'uuv04' or 'bluerov.'" />
+    <arg name="vehicle_type" doc="Either 'hippocampus' or 'bluerov'."/>
     <arg name="sensor_pose_config_file" default="$(arg vehicle_type)_sensor_poses_default.yaml"/>
 
     <node pkg="hippocampus_common" type="tf_publisher_node" name="tf_publisher_node" clear_params="true" output="screen">

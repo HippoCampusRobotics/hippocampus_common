@@ -144,7 +144,7 @@ class TfHelper(object):
                 time=rospy.Time(0),
                 timeout=rospy.Duration(10))
         else:
-            rospy.logerr(
+            rospy.logfatal(
                 "[{}] Transform from front camera to base link not found. \
                     Check if correct vehicle type and camera name.".format(
                     rospy.get_name()))
@@ -160,7 +160,7 @@ class TfHelper(object):
                 time=rospy.Time(0),
                 timeout=rospy.Duration(10))
         else:
-            rospy.logerr(
+            rospy.logfatal(
                 "[{}] Transform from vertical camera to base link not found. \
                     Check if correct vehicle type and camera name.".format(
                     rospy.get_name()))
@@ -198,7 +198,7 @@ class TfHelper(object):
         elif camera_name == "vertical_camera":
             return self.get_vertical_camera_frame_to_base_link_tf()
         else:
-            rospy.logerr("[{}] Specified camera_name does not exist. \
+            rospy.logfatal("[{}] Specified camera_name does not exist. \
                     No transform found!".format(rospy.get_name()))
             exit(-1)
 
