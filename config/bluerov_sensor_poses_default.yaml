@@ -3,19 +3,19 @@
 
 # Frame convention following ROS/Gazebo
 front_camera:
-  x: 0.15
+  x: 0.3
   y: 0.0
-  z: 0.07
+  z: 0.05
   roll: 0.0
   pitch: 0.0
   yaw: 0.0
-
+  
 vertical_camera:
-  x: 0.15
+  x: 0.3
   y: 0.0
-  z: -0.08
+  z: -0.05
   roll: 0.0
-  pitch: 1.57
+  pitch: 1.5708
   yaw: 0.0
   
 # Frame convention following ROS/Gazebo

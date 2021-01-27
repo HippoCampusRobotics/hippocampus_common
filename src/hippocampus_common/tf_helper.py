@@ -110,8 +110,7 @@ class TfHelper(object):
 
     def get_vertical_camera_frame_id(self):
         if not self._vertical_camera_frame_id:
-            self._vertical_camera_frame_id = self._get_vertical_camera_frame_id(
-            )
+            self._vertical_camera_frame_id = self._get_vertical_camera_frame_id()
         return self._vertical_camera_frame_id
 
     def get_barometer_link_id(self):

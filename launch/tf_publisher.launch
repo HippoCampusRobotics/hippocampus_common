@@ -5,5 +5,7 @@
 
     <node pkg="hippocampus_common" type="tf_publisher_node" name="tf_publisher_node" output="screen">
         <rosparam command="load" file="$(find hippocampus_common)/config/$(arg sensor_pose_config_file)" />
+        <param name="vehicle_name" value="$(arg vehicle_name)"/>
+        <param name="vehicle_type" value="$(arg vehicle_type)"/>
     </node>
 </launch>

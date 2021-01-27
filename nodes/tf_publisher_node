@@ -50,9 +50,9 @@ class TfPublisherNode(Node):
 
         self.static_broadcaster = tf2_ros.StaticTransformBroadcaster()
         self.tf_broadcaster = tf2_ros.TransformBroadcaster()
-        vehicle_name = self.get_param("vehicle_name", "uuv00")
+        vehicle_name = self.get_param("~vehicle_name", "bluerov")
         self.tf_helper = TfHelper(vehicle_name)
-        self.vehicle_type = self.get_param("vehicle_type")
+        self.vehicle_type = self.get_param("~vehicle_type", "bluerov")
 
         # HippoCampus only has one camera
         if self.vehicle_type == "hippocampus":
