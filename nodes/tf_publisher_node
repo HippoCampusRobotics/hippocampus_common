@@ -32,6 +32,9 @@ publishes the transformed data as PoseStamped/TwistStamped:
 """
 
 import rospy
+import rospkg
+import os
+import yaml
 from geometry_msgs.msg import PoseStamped, TwistStamped, Quaternion, \
     TransformStamped, Vector3
 from nav_msgs.msg import Odometry
@@ -42,6 +45,8 @@ import tf2_geometry_msgs
 from hippocampus_common.node import Node
 from hippocampus_common.tf_helper import TfHelper
 import math
+
+PACKAGE = "hippocampus_common"
 
 
 class TfPublisherNode(Node):
@@ -180,6 +185,22 @@ class TfPublisherNode(Node):
         # publish the message of the transformed twist
         self.ground_truth_twist_pub.publish(twist)
 
+    def _get_sensor_config(self, param_names):
+        rospy.logwarn("No Sensor Pose given! Using default values")
+        param_list = [0.0]*len(param_names)
+        config_file_name = self.vehicle_type+"_sensor_poses_default.yaml"
+        package_path = rospkg.RosPack().get_path(PACKAGE)
+        config_file_path = os.path.join(package_path, "config", config_file_name)
+        with open(config_file_path, 'r') as stream:
+            data = yaml.safe_load(stream)
+        for i, param_name in enumerate(param_names):
+            split_param_name = param_name.split('/')
+            param = data[split_param_name[0]]
+            for split in split_param_name[1:]:
+                param = param[split]
+            param_list[i] = param
+        return param_list
+
     def get_vertical_camera_link_transform(self):
         if not self._vertical_camera_link_tf:
             self._vertical_camera_link_tf = \
@@ -187,13 +208,22 @@ class TfPublisherNode(Node):
         return self._vertical_camera_link_tf
 
     def _get_vertical_camera_link_transform(self):
-        # read the pose from the parameter server
-        pos_x = Node.get_param("~vertical_camera/x", 0.0)
-        pos_y = Node.get_param("~vertical_camera/y", 0.0)
-        pos_z = Node.get_param("~vertical_camera/z", 0.0)
-        roll = Node.get_param("~vertical_camera/roll", 0.0)
-        pitch = Node.get_param("~vertical_camera/pitch", 0.0)
-        yaw = Node.get_param("~vertical_camera/yaw", 0.0)
+        try:
+            # read the pose from the parameter server
+            pos_x = Node.get_param("~vertical_camera/x")
+            pos_y = Node.get_param("~vertical_camera/y")
+            pos_z = Node.get_param("~vertical_camera/z")
+            roll = Node.get_param("~vertical_camera/roll")
+            pitch = Node.get_param("~vertical_camera/pitch")
+            yaw = Node.get_param("~vertical_camera/yaw")
+        except UnboundLocalError:
+            pos_x, pos_y, pos_z, roll, pitch, yaw = \
+                self._get_sensor_config(['vertical_camera/x',
+                                         'vertical_camera/y',
+                                         'vertical_camera/z',
+                                         'vertical_camera/roll',
+                                         'vertical_camera/pitch',
+                                         'vertical_camera/yaw'])
 
         # create a transform message that will be returned by this function
         transform = TransformStamped()
@@ -239,13 +269,22 @@ class TfPublisherNode(Node):
         return self._front_camera_link_tf
 
     def _get_front_camera_link_transform(self):
-        # read the pose from the parameter server
-        pos_x = Node.get_param("~front_camera/x", 0.0)
-        pos_y = Node.get_param("~front_camera/y", 0.0)
-        pos_z = Node.get_param("~front_camera/z", 0.0)
-        roll = Node.get_param("~front_camera/roll", 0.0)
-        pitch = Node.get_param("~front_camera/pitch", 0.0)
-        yaw = Node.get_param("~front_camera/yaw", 0.0)
+        try:
+            # read the pose from the parameter server
+            pos_x = Node.get_param("~front_camera/x")
+            pos_y = Node.get_param("~front_camera/y")
+            pos_z = Node.get_param("~front_camera/z")
+            roll = Node.get_param("~front_camera/roll")
+            pitch = Node.get_param("~front_camera/pitch")
+            yaw = Node.get_param("~front_camera/yaw")
+        except UnboundLocalError:
+            pos_x, pos_y, pos_z, roll, pitch, yaw = \
+                self._get_sensor_config(['front_camera/x',
+                                         'front_camera/y',
+                                         'front_camera/z',
+                                         'front_camera/roll',
+                                         'front_camera/pitch',
+                                         'front_camera/yaw'])
 
         # create a transform message that will be returned by this function
         transform = TransformStamped()
@@ -285,10 +324,15 @@ class TfPublisherNode(Node):
         return self._front_camera_frame_tf
 
     def _get_barometer_transform(self):
-
-        pos_x = Node.get_param("~barometer/x", 0.0)
-        pos_y = Node.get_param("~barometer/y", 0.0)
-        pos_z = Node.get_param("~barometer/z", 0.0)
+        try:
+            pos_x = Node.get_param("~barometer/x")
+            pos_y = Node.get_param("~barometer/y")
+            pos_z = Node.get_param("~barometer/z")
+        except UnboundLocalError:
+            pos_x, pos_y, pos_z = \
+                self._get_sensor_config(['barometer/x',
+                                         'barometer/y',
+                                         'barometer/z'])
 
         transform = TransformStamped()
         transform.header.stamp = rospy.Time.now()

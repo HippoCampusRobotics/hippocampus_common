@@ -1,11 +1,11 @@
 <launch>
-    <arg name="vehicle_name" doc="Something like 'uuv04' or 'bluerov.'" />
-    <arg name="vehicle_type" doc="Either 'hippocampus' or 'bluerov'."/>
+    <arg name="vehicle_name" default="None" doc="Something like 'uuv04' or 'bluerov.'" />
+    <arg name="vehicle_type" default="None" doc="Either 'hippocampus' or 'bluerov'."/>
     <arg name="sensor_pose_config_file" default="$(arg vehicle_type)_sensor_poses_default.yaml"/>
 
     <node pkg="hippocampus_common" type="tf_publisher_node" name="tf_publisher_node" output="screen">
-        <rosparam command="load" file="$(find hippocampus_common)/config/$(arg sensor_pose_config_file)" />
-        <param name="vehicle_name" value="$(arg vehicle_name)"/>
-        <param name="vehicle_type" value="$(arg vehicle_type)"/>
+        <rosparam unless="$(eval 'None' in arg('sensor_pose_config_file'))" command="load" file="$(find hippocampus_common)/config/$(arg sensor_pose_config_file)" />
+        <param unless="$(eval arg('vehicle_name')=='None')" name="vehicle_name" value="$(arg vehicle_name)"/>
+        <param unless="$(eval arg('vehicle_type')=='None')" name="vehicle_type" value="$(arg vehicle_type)"/>
     </node>
 </launch>
