@@ -1,4 +1,29 @@
-"""This module provides a very basic Node class template
+"""This module provides a very basic Node class template.
+
+Examples:
+    ::
+        from hippocampus_common.node import Node
+
+        if __name__ == "__main__":
+            my_node = Node(name="my_simple_node")
+            default = "If you see this, the param was not set before."
+            param = my_node.get_param("~my_private_param", default=default)
+            print(param)
+            my_node.run()
+
+    ::
+        from hippocampus_common.node import Node
+
+
+        class MyAdvancedNode(Node):
+            def __init__(self, name):
+                super(MyAdvancedNode, self).__init__(name=name)
+                ...
+
+
+        if name == "__main__":
+            my_node = MyAdvancedNode("my_advanced_node")
+
 """
 import rospy
 
@@ -7,7 +32,7 @@ class Node(object):
     """A basic node class to start off with, when implementing a ROS node.
     """
     def __init__(self, name, anonymous=False, disable_signals=False):
-        """Initializes a ROS node by calling `rospy.init_node`.
+        """Initializes a ROS node by calling ``rospy.init_node``.
 
         Args:
             name (str): Name of the node.
@@ -22,8 +47,11 @@ class Node(object):
         rospy.loginfo("[{}] Initialized.".format(rospy.get_name()))
 
     def run(self):
-        """Enters a loop until ROS is shut down to keep the program from exiting
-        prematurely.
+        """Enters a loop (namely ``rospy.spin()``) until ROS is shut down to
+        keep the program from exiting prematurely.
+
+        Override this method if your node should do something besides waiting
+        for arriving messages.
         """
         while not rospy.is_shutdown():
             rospy.spin()
@@ -38,13 +66,16 @@ class Node(object):
 
         Args:
             name (str): Name of the parameter.
-            default : Default value to be used if parameter does not exist.
-            verbose: Log parameter values
-            limit: Limit the length of the printed parameter value to specified
-                   number of characters if > 0.
+            default (optinal): Default value to be used if parameter does not
+                exist. Defaults to None.
+            verbose (bool, optional): Defaults to True.
+            limit (int, optional): Limit the length of the printed parameter
+                value to specified number of characters if > 0. Defaults to
+                ``80 * 50``.
         Returns:
-            [XmlRpcLegalType]: Either the read parameter or the default value if
-                it does not exist.
+            Any: Either the read parameter or the default value if
+                it does not exist. If no default value was given, None will be
+                returned.
         """
         try:
             param = rospy.get_param(name)
@@ -74,10 +105,11 @@ class Node(object):
 
         Args:
             name (str): Name of the parameter.
-            value : Value of the parameter that is set.
-            verbose: Log parameter values.
-            limit: Limit the length of the printed parameter value to specified
-                   number of characters if > 0.
+            value: Value of the parameter that is set.
+            verbose (bool, optional): Defaults to True.
+            limit (int, optional): Limit the length of the printed parameter
+                value to specified number of characters if > 0. Defaults to
+                ``80 * 50``.
         """
         rospy.set_param(name, value)
         value_string = "{}".format(value)
