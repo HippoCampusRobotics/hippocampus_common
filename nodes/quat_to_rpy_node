@@ -25,17 +25,17 @@ class QuatToRpyNode(Node):
         if self.msg_type == "PoseStamped":
             self.sub = rospy.Subscriber("orientation",
                                         PoseStamped,
-                                        self.on_pose,
+                                        self.on_orientation,
                                         queue_size=10)
         elif self.msg_type == "PoseWithCovarianceStamped":
             self.sub = rospy.Subscriber("orientation",
                                         PoseWithCovarianceStamped,
-                                        self.on_pose,
+                                        self.on_orientation,
                                         queue_size=10)
         elif self.msg_type == "AttitudeTarget":
             self.sub = rospy.Subscriber("orientation",
                                         AttitudeTarget,
-                                        self.on_pose,
+                                        self.on_orientation,
                                         queue_size=10)
         else:
             rospy.logerr("[%s] Pose msg type defined does not exist.",
