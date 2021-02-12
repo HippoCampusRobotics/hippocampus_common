@@ -1,0 +1,21 @@
+<launch>
+    <arg name="vehicle_name" default="test"/>
+    <arg name="camera_info_url" default="file://$(find camera)/config/calib_ov9281_00.yaml" />
+    <arg name="camera_name" default="vertical_camera" />
+    <arg name="camera_frame_id" default="camera_frame" />
+    <arg name="framerate" default="10" />
+    <arg name="base_topic" default="image_raw" />
+    <!-- <arg name="qgc_host" default="mummel-PC.local"/> -->
+    <arg name="qgc_ip" value="192.168.0.160"/>
+
+    <group ns="$(arg vehicle_name)">
+        <!-- camera -->
+        <include file="$(find camera)/launch/camera_node.launch" pass_all_args="true"/>
+
+        <!-- mavros -->
+        <include file="$(find mavros)/launch/px4.launch">
+            <arg name="fcu_url" value="/dev/fcu_tele:921600" />
+            <arg name="gcs_url" value="udp://@$(arg qgc_ip):14550" />
+        </include>
+    </group>
+</launch>

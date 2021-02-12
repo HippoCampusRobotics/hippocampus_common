@@ -14,7 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_python_setup()
 catkin_package()
 catkin_install_python(PROGRAMS
-  nodes/pose_to_rpy_node
+  nodes/quat_to_rpy_node
+  nodes/rpy_to_att_target_node
   nodes/tf_publisher_node
   nodes/water_baro_node
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

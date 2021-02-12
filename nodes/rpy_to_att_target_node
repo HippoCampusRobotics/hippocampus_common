@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+import rospy
+from hippocampus_common.node import Node
+from geometry_msgs.msg import Vector3
+from mavros_msgs.msg import AttitudeTarget
+import tf.transformations
+
+
+class RpyToAttTargetNode(Node):
+    def __init__(self, name):
+        """Subscribes to Vector3 message containing roll, pitch, yaw values,
+        converts to quaternion and publishes the quaternion as AttitudeTarget.
+
+        Sets all other message entries of AttitudeTarget to zero.
+
+        Args:
+            name (str): Name of the node. Must be unique.
+        """
+        super(RpyToAttTargetNode, self).__init__(name=name)
+        self.pub = rospy.Publisher("out", AttitudeTarget, queue_size=1)
+        self.rpy_sub = rospy.Subscriber("in", Vector3, self.on_rpy)
+
+    def on_rpy(self, msg):
+        target = AttitudeTarget()
+        target.header.stamp = rospy.Time.now()
+        target.thrust = 0.0
+        quat = tf.transformations.quaternion_from_euler(msg.x, msg.y, msg.z)
+        target.orientation.x = quat[0]
+        target.orientation.y = quat[1]
+        target.orientation.z = quat[2]
+        target.orientation.w = quat[3]
+        self.pub.publish(target)
+
+
+def main():
+    node = RpyToAttTargetNode("rpy_to_target")
+    node.run()
+
+
+if __name__ == "__main__":
+    main()
