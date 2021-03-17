@@ -12,6 +12,8 @@
 
     <!-- EKF specific -->
     <arg name="process_model" default="simple" />
+    <!-- "simple": new state = old state -->
+    <!-- "velocities": simple point mass model using velocities to propagate old state -->
 
     <group ns="$(arg vehicle_name)">
         <param name="vehicle_name" value="$(arg vehicle_name)" />
