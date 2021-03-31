@@ -12,7 +12,7 @@ class BaseConfigurator(object):
 
     EEPROM_PARAMETERS = dict(serial_speed=57,
                              air_speed=64,
-                             netid=2,
+                             netid=12,
                              txpower=20,
                              mavlink=1,
                              oppresend=0,
@@ -50,7 +50,24 @@ class BaseConfigurator(object):
         self._port = serial.Serial(port, baud, timeout=3)
         self._desired_params = dict()
         self._current_params = dict()
-        self.enter_at_mode()
+
+    def _parse_ok(self, bytes):
+        if len(bytes) < 4:
+            return False
+        if b"OK" in bytes[-4:]:
+            return True
+        return False
+
+    def read_until_ok(self, retries=3):
+        success = False
+        while True:
+            bytes = self._port.readline()
+            if len(bytes) > 0:
+                success = self._parse_ok(bytes)
+            else:
+                retries -= 1
+            if retries <= 0 or success:
+                return success
 
     def set_desired_params(self, params):
         new_params = dict()
@@ -95,21 +112,25 @@ class BaseConfigurator(object):
 
     def enter_at_mode(self):
         success = False
+        retries = 5
         while True:
             print("Entering AT mode...")
             self._port.write(b"\r\n")
             self._port.write(self.AT_COMMAND["exit"].encode())
             time.sleep(1.5)
             self._port.write(b"+++")
-            while True:
-                line = self._port.readline().decode("utf-8")
-                if "OK" in line:
-                    print("Success.")
-                    return True
-                if line == "":
-                    break
+            time.sleep(1.5)
+            success = self.read_until_ok()
+            if success:
+                self._port.flushInput()
+                return success
             print("Could not enter AT mode. Keep trying...")
             time.sleep(1.5)
+            retries -= 1
+            print("{} retriues left".format(retries))
+            if retries == 0:
+                self._port.flushInput()
+                return False
 
     def read_parameters_from_eeprom(self):
         pattern = self._get_param_pattern()
@@ -159,7 +180,9 @@ class BaseConfigurator(object):
         self._port.write(self.AT_COMMAND["show_version"].encode())
         version = ""
         while True:
-            answer = self._port.readline().decode("utf-8")
+            bytes = self._port.readline()
+            print(bytes)
+            answer = bytes.decode("utf-8")
             if not answer:
                 break
             if answer == self.AT_COMMAND["show_version"]:
@@ -196,6 +219,9 @@ class BaseConfigurator(object):
 
 def main():
     c = BaseConfigurator()
+    if not c.enter_at_mode():
+        print("Failed to enter AT mode.")
+        exit(1)
     print(c.get_version())
 
     c.read_parameters_from_eeprom()
@@ -206,7 +232,9 @@ def main():
     c.write_eeprom()
     c.reboot()
     time.sleep(2.0)
-    c.enter_at_mode()
+    if not c.enter_at_mode():
+        print("Failed to enter AT mode.")
+        exit(1)
     c.read_parameters_from_eeprom()
     c.print_parameters_table()
 
