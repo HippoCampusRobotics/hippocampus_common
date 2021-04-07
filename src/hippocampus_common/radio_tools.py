@@ -24,8 +24,8 @@ class BaseConfigurator(object):
         txpower=dict(register=4,
                      readonly=False,
                      options=[1, 2, 5, 8, 11, 14, 17, 20],
-                     default=20),
-        ecc=dict(register=5, readonly=False, options=[0, 1], default=0),
+                     default=11),
+        ecc=dict(register=5, readonly=True, options=[0, 1], default=0),
         mavlink=dict(register=6, readonly=False, options=[0, 1, 2], default=1),
         oppresend=dict(register=7, readonly=False, options=[0, 1], default=0),
         min_freq=dict(register=8, readonly=False, options=None, default=433050),
@@ -40,7 +40,7 @@ class BaseConfigurator(object):
         nodedestination=dict(register=16,
                              readonly=False,
                              options=None,
-                             default=655351),
+                             default=65535),
         syncany=dict(register=17, readonly=False, options=[0, 1], default=0),
         nodecount=dict(register=18, readonly=False, options=None, default=5),
     )
@@ -76,6 +76,13 @@ class BaseConfigurator(object):
         self._desired_params = dict()
         self._current_params = dict()
 
+    @staticmethod
+    def get_default_params():
+        params = dict()
+        for param in BaseConfigurator.EEPROM_PARAMETERS:
+            params[param] = BaseConfigurator.EEPROM_PARAMETERS[param]["default"]
+        return params
+
     def _parse_ok(self, bytes):
         if len(bytes) < 4:
             return False
@@ -98,16 +105,33 @@ class BaseConfigurator(object):
     def set_desired_params(self, params):
         new_params = dict()
         for key in params:
-            if key not in self.AT_EEPROM:
+            if key not in self.EEPROM_PARAMETERS:
                 print("Skipping unknown paramter '{}'".format(key))
                 continue
             new_params[key] = params[key]
         self._desired_params = new_params
 
     def write_params(self):
-        for key in self._desired_params:
-            if self._desired_params[key] != self._current_params[key]:
-                self._write_param(key, self._desired_params[key])
+        failed_params = []
+        if self._read_param_format() == 27:
+            current_nodecount = self._current_params["nodecount"]
+            current_nodeid = self._current_params["nodeid"]
+            desired_nodecount = self._desired_params["nodecount"]
+            desired_nodeid = self._desired_params["nodeid"]
+            if current_nodeid >= desired_nodecount:
+                self._write_param(self.EEPROM_PARAMETERS["nodeid"]["register"],
+                                  desired_nodeid)
+            if desired_nodeid >= current_nodecount:
+                self._write_param(
+                    self.EEPROM_PARAMETERS["nodecount"]["register"],
+                    desired_nodecount)
+        for param in self._desired_params:
+            if self.EEPROM_PARAMETERS[param]["readonly"]:
+                continue
+            register = self.EEPROM_PARAMETERS[param]["register"]
+            if not (self._write_param(register, self._desired_params[param])):
+                failed_params.append(register)
+        return failed_params
 
     def write_eeprom(self):
         self.port.write(self.AT_COMMAND["write_eeprom"].encode())
@@ -119,8 +143,9 @@ class BaseConfigurator(object):
                 print("Failed to write eeprom.")
                 return False
 
-    def _write_param(self, param_name, value):
-        data = "{}={}\r\n".format(self.AT_EEPROM[param_name], value).encode()
+    def _write_param(self, register, value):
+        data = "ATS{}={}\r\n".format(register, value).encode()
+        print("Writing '%s'", data)
         self.port.write(data)
 
         while True:
@@ -128,9 +153,7 @@ class BaseConfigurator(object):
             if "OK" in line:
                 break
             if line == "":
-                print("Failed to write param '{}'".format(param_name))
                 return False
-        print("Successfully written {} = {}".format(param_name, value))
         return True
 
     def enter_at_mode(self):
@@ -225,21 +248,6 @@ class BaseConfigurator(object):
             print("Paramter format '{}' not supported. Please implement it!".
                   format(param_format))
         return pattern
-
-    def get_version(self):
-        self.port.write(self.AT_COMMAND["show_version"].encode())
-        version = ""
-        while True:
-            bytes = self.port.readline()
-            print(bytes)
-            answer = bytes.decode("utf-8")
-            if not answer:
-                break
-            if answer == self.AT_COMMAND["show_version"]:
-                continue
-            version = answer
-            break
-        return version
 
 
 def main():
