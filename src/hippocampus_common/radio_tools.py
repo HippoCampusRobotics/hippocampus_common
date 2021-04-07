@@ -7,7 +7,7 @@ import time
 import re
 
 
-class BaseConfigurator(object):
+class Configurator(object):
 
     EEPROM_PARAMETERS = dict(
         format=dict(register=0, readonly=True, options=None, default=None),
@@ -20,7 +20,8 @@ class BaseConfigurator(object):
             readonly=False,
             options=[2, 4, 8, 16, 19, 24, 32, 48, 64, 96, 128, 192, 250],
             default=64),
-        netid=dict(register=3, readonly=False, options=None, default=25),
+        netid=dict(register=3, readonly=False, options=range(0, 26),
+                   default=25),
         txpower=dict(register=4,
                      readonly=False,
                      options=[1, 2, 5, 8, 11, 14, 17, 20],
@@ -28,37 +29,41 @@ class BaseConfigurator(object):
         ecc=dict(register=5, readonly=True, options=[0, 1], default=0),
         mavlink=dict(register=6, readonly=False, options=[0, 1, 2], default=1),
         oppresend=dict(register=7, readonly=False, options=[0, 1], default=0),
-        min_freq=dict(register=8, readonly=False, options=None, default=433050),
-        max_freq=dict(register=9, readonly=False, options=None, default=434790),
-        num_channels=dict(register=10, readonly=False, options=None,
+        min_freq=dict(register=8,
+                      readonly=False,
+                      options=[433050],
+                      default=433050),
+        max_freq=dict(register=9,
+                      readonly=False,
+                      options=[434790],
+                      default=434790),
+        num_channels=dict(register=10,
+                          readonly=False,
+                          options=range(5, 51),
                           default=20),
-        duty_cycle=dict(register=11, readonly=False, options=None, default=100),
-        lbt_rssi=dict(register=12, readonly=False, options=None, default=0),
+        duty_cycle=dict(register=11,
+                        readonly=False,
+                        options=range(10, 101),
+                        default=100),
+        lbt_rssi=dict(register=12,
+                      readonly=False,
+                      options=range(0, 256),
+                      default=0),
         manchester=dict(register=13, readonly=False, options=[0, 1], default=0),
         rtscts=dict(register=14, readonly=False, options=[0, 1], default=0),
-        nodeid=dict(register=15, readonly=False, options=None, default=2),
+        nodeid=dict(register=15,
+                    readonly=False,
+                    options=range(0, 30),
+                    default=2),
         nodedestination=dict(register=16,
                              readonly=False,
-                             options=None,
+                             options=range(0, 30) + [65535],
                              default=65535),
         syncany=dict(register=17, readonly=False, options=[0, 1], default=0),
-        nodecount=dict(register=18, readonly=False, options=None, default=5),
-    )
-
-    AT_EEPROM = dict(
-        serial_speed="ATS1",
-        air_speed="ATS2",
-        netid="ATS3",
-        txpower="ATS4",
-        mavlink="ATS6",
-        oppresend="ATS7",
-        min_freq="ATS8",
-        max_freq="ATS9",
-        num_channels="ATS10",
-        duty_cycle="ATS11",
-        lbt_rssi="ATS12",
-        manchester="ATS13",
-        rtscts="ATS14",
+        nodecount=dict(register=18,
+                       readonly=False,
+                       options=range(2, 31),
+                       default=5),
     )
 
     AT_COMMAND = dict(write_eeprom="AT&W\r\n",
@@ -79,8 +84,8 @@ class BaseConfigurator(object):
     @staticmethod
     def get_default_params():
         params = dict()
-        for param in BaseConfigurator.EEPROM_PARAMETERS:
-            params[param] = BaseConfigurator.EEPROM_PARAMETERS[param]["default"]
+        for param in Configurator.EEPROM_PARAMETERS:
+            params[param] = Configurator.EEPROM_PARAMETERS[param]["default"]
         return params
 
     def _parse_ok(self, bytes):
@@ -111,13 +116,15 @@ class BaseConfigurator(object):
             new_params[key] = params[key]
         self._desired_params = new_params
 
-    def write_params(self):
+    def write_params(self, params=None):
         failed_params = []
+        if params is None:
+            params = self._desired_params
         if self._read_param_format() == 27:
             current_nodecount = self._current_params["nodecount"]
             current_nodeid = self._current_params["nodeid"]
-            desired_nodecount = self._desired_params["nodecount"]
-            desired_nodeid = self._desired_params["nodeid"]
+            desired_nodecount = params["nodecount"]
+            desired_nodeid = params["nodeid"]
             if current_nodeid >= desired_nodecount:
                 self._write_param(self.EEPROM_PARAMETERS["nodeid"]["register"],
                                   desired_nodeid)
@@ -125,11 +132,11 @@ class BaseConfigurator(object):
                 self._write_param(
                     self.EEPROM_PARAMETERS["nodecount"]["register"],
                     desired_nodecount)
-        for param in self._desired_params:
+        for param in params:
             if self.EEPROM_PARAMETERS[param]["readonly"]:
                 continue
             register = self.EEPROM_PARAMETERS[param]["register"]
-            if not (self._write_param(register, self._desired_params[param])):
+            if not (self._write_param(register, params[param])):
                 failed_params.append(register)
         return failed_params
 
@@ -145,7 +152,6 @@ class BaseConfigurator(object):
 
     def _write_param(self, register, value):
         data = "ATS{}={}\r\n".format(register, value).encode()
-        print("Writing '%s'", data)
         self.port.write(data)
 
         while True:
@@ -156,18 +162,56 @@ class BaseConfigurator(object):
                 return False
         return True
 
-    def enter_at_mode(self):
+    def write_param(self, name, value):
+        if name not in self.EEPROM_PARAMETERS:
+            return False
+        if self.EEPROM_PARAMETERS[name]["readonly"]:
+            return True
+        register = self.EEPROM_PARAMETERS[name]["register"]
+        return self._write_param(register, value)
+
+    def check_param(self, name, value):
+        if name not in self.EEPROM_PARAMETERS:
+            return False
+        if self.EEPROM_PARAMETERS[name]["options"] is None:
+            return True
+        else:
+            return int(value) in self.EEPROM_PARAMETERS[name]["options"]
+
+    def _parse_param(self):
+        value = None
+        while True:
+            answer = self.port.readline().decode("utf-8")
+            if not answer:
+                break
+            try:
+                value = int(answer.split()[-1])
+            except ValueError:
+                pass
+            else:
+                break
+        return value
+
+    def read_param(self, name):
+        if name not in self.EEPROM_PARAMETERS:
+            return None
+        register = self.EEPROM_PARAMETERS[name]["register"]
+        self.port.reset_input_buffer()
+        self.port.write("ATS{}?\r\n".format(register).encode())
+        self.port.flush()
+        return self._parse_param()
+
+    def enter_at_mode(self, retries=5):
         success = False
-        retries = 5
         while True:
             print("Entering AT mode...")
             for i in range(2):
                 self.exit_at_mode()
-            time.sleep(1.5)
+            time.sleep(1.05)
             self.port.write(b"+++")
             self.port.flush()
             self.port.reset_input_buffer()
-            time.sleep(1.5)
+            time.sleep(1.05)
             success = self.read_until_ok()
             if success:
                 self.port.flushInput()
@@ -181,10 +225,18 @@ class BaseConfigurator(object):
                 return False
 
     def exit_at_mode(self):
-        self.port.write(self.AT_COMMAND["exit"].encode())
+        try:
+            self.port.write(self.AT_COMMAND["exit"].encode())
+        except serial.serialutil.SerialException:
+            return False
+        return True
 
     def reboot(self):
-        self.port.write(self.AT_COMMAND["reboot"].encode())
+        try:
+            self.port.write(self.AT_COMMAND["reboot"].encode())
+        except serial.serialutil.SerialException:
+            return False
+        return True
 
     def show_version(self):
         self.port.reset_input_buffer()
@@ -251,7 +303,7 @@ class BaseConfigurator(object):
 
 
 def main():
-    c = BaseConfigurator()
+    c = Configurator()
     if not c.enter_at_mode():
         print("Failed to enter AT mode.")
         exit(1)

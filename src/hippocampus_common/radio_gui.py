@@ -77,6 +77,35 @@ class Worker(QtCore.QObject):
         self.finished.emit()
 
 
+class ReadWriteParamsWorker(QtCore.QObject):
+    ret = QtCore.pyqtSignal(object)
+    finished = QtCore.pyqtSignal()
+    progress = QtCore.pyqtSignal(int, int)
+
+    def __init__(self, fun, param_names=None, param_values=None):
+        super(ReadWriteParamsWorker, self).__init__()
+        self.names = param_names
+        self.values = param_values
+        self.fun = fun
+
+    def set_params(self, names, values=None):
+        self.names = names
+        self.values = values
+
+    def run(self):
+        ret_values = dict()
+        if self.names is not None:
+            self.progress.emit(0, len(self.names))
+            for i, param in enumerate(self.names):
+                if self.values is None:
+                    ret_values[name] = self.fun(param)
+                else:
+                    ret_values[name] = self.fun(param, self.values[i])
+                self.progress.emit(i, len(self.names))
+        self.ret.emit(ret_values)
+        self.finished.emit()
+
+
 class RadioConfiguratorWidget(QtWidgets.QWidget):
     BAUDS = [2400, 4800, 9600, 19200, 38400, 57600, 115200]
     BAUD_DEFAULT = 57600
@@ -86,7 +115,7 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
 
     def __init__(self):
         super(RadioConfiguratorWidget, self).__init__()
-        self.configurator = radio_tools.BaseConfigurator()
+        self.configurator = radio_tools.Configurator()
         self._is_connected = False
         self._in_at_mode = False
 
@@ -96,8 +125,8 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         self._show_version_thread = None
         self._show_version_worker = None
 
-        self._read_eeprom_thread = None
-        self._read_eeprom_worker = None
+        self._read_params_thread = None
+        self._read_params_worker = None
         self.setup_background_threads()
         ui_file = os.path.join(rospkg.RosPack().get_path("hippocampus_common"),
                                "resource", "radio_configurator.ui")
@@ -179,13 +208,13 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
                                   return_cb=self.on_show_version,
                                   finished_cb=self.on_show_version_finished)
 
-        self._read_eeprom_thread = QtCore.QThread()
-        self._read_eeprom_worker = Worker(
+        self._read_params_thread = QtCore.QThread()
+        self._read_params_worker = ReadWriteParamsWorker(
             self.configurator.read_parameters_from_eeprom)
-        connect_worker_and_thread(worker=self._read_eeprom_worker,
-                                  thread=self._read_eeprom_thread,
-                                  return_cb=self.on_read_eeprom,
-                                  finished_cb=self.on_read_eeprom_finished)
+        connect_worker_and_thread(worker=self._read_params_worker,
+                                  thread=self._read_params_thread,
+                                  return_cb=self.on_read_params_result,
+                                  finished_cb=self.on_read_params_finished)
 
     def on_enter_at_finished(self):
         self._enter_at_thread.quit()
@@ -195,9 +224,9 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         self._show_version_thread.quit()
         self._show_version_thread.wait()
 
-    def on_read_eeprom_finished(self):
-        self._read_eeprom_thread.quit()
-        self._read_eeprom_thread.wait()
+    def on_read_params_finished(self):
+        self._read_params_thread.quit()
+        self._read_params_thread.wait()
 
     def get_table_column(self, name):
         col = -1
@@ -334,7 +363,7 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
             enable_all_buttons_in_group(self.at_group, True)
             self.enter_at_button.setEnabled(False)
             enable_all_buttons_in_group(self.eeprom_group, True)
-            self.do_refresh()
+            self.start_read_all_params_thread()
         else:
             self.logger.error("Failed to enter AT mode.")
             show_error_box(
@@ -384,37 +413,41 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
     @QtCore.pyqtSlot()
     def on_refresh_button_clicked(self):
         self.logger.debug("Refresh button clicked.")
-        self.do_refresh()
+        self.start_read_all_params_thread()
 
-    def do_refresh(self):
-        if self._read_eeprom_thread.isRunning():
+    def start_read_all_params_thread(self):
+        if self._read_params_thread.isRunning():
             self.logger.warn("Trying to read EEPROM, but the responsible "
                              "thread is already running.")
             show_error_box("Already reading EEPROM...")
         else:
             self.logger.info("Refreshing current EEPROM parameters.")
-            self._read_eeprom_thread.start()
+            self._read_params_thread.start()
 
     @QtCore.pyqtSlot(object)
-    def on_read_eeprom(self, eeprom):
-        if eeprom is None:
+    def on_read_params_result(self, params):
+        if params is None:
             self.logger.error("Failed to read EEPROM parameters!")
             show_error_box("Failed to read EEPROM!")
         else:
             column = self.get_eeprom_current_column()
             failed_names = []
-            for param in eeprom:
+            failed_params = []
+            for param in params:
                 row = self.get_table_row(param)
                 if row < 0:
                     failed_names.append(param)
                     continue
                 current_item = self.eeprom_table.item(row, column)
+                if params[param] is None:
+                    failed_params.append(param)
+                    continue
                 if not current_item:
-                    item = QtWidgets.QTableWidgetItem(str(eeprom[param]))
+                    item = QtWidgets.QTableWidgetItem(str(params[param]))
                     self.eeprom_table.setItem(row, column, item)
                 else:
                     self.eeprom_table.item(row,
-                                           column).setText(str(eeprom[param]))
+                                           column).setText(str(params[param]))
             self.logger.info("Refreshed EEPROM paramters successfully.")
             if len(failed_names) > 0:
                 self.logger.error("Failed to display following paramters: %s",
@@ -422,6 +455,12 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
                 show_error_box(
                     "Failed to display following parameters: {}".format(
                         failed_names))
+
+            if len(failed_params) > 0:
+                self.logger.error("Failed to read following parameters: %s",
+                                  failed_params)
+                show_error_box("Failed to read following parameters: {}".format(
+                    failed_params))
 
     def set_desired_cell(self, row, value):
         col = self.get_eeprom_desired_column()
@@ -471,7 +510,7 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
 
     @QtCore.pyqtSlot()
     def on_apply_button_clicked(self):
-        params = radio_tools.BaseConfigurator.get_default_params()
+        params = radio_tools.Configurator.get_default_params()
         desired_col = self.get_eeprom_desired_column()
         current_col = self.get_eeprom_current_column()
         name_col = self.get_eeprom_param_name_column()
@@ -515,7 +554,7 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         failed_params = self.configurator.write_params()
         if len(failed_params) > 0:
             show_error_box("Failed to write params: {}".format(failed_params))
-        self.do_refresh()
+        self.start_read_all_params_thread()
         if len(unset_params):
             show_message_box(
                 "Ignored unset parameters: {}".format(unset_params))
