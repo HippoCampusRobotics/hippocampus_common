@@ -20,13 +20,13 @@ class Configurator(object):
             readonly=False,
             options=[2, 4, 8, 16, 19, 24, 32, 48, 64, 96, 128, 192, 250],
             default=64),
-        netid=dict(register=3, readonly=False, options=range(0, 26),
+        netid=dict(register=3, readonly=False, options=list(range(0, 26)),
                    default=25),
         txpower=dict(register=4,
                      readonly=False,
                      options=[1, 2, 5, 8, 11, 14, 17, 20],
                      default=11),
-        ecc=dict(register=5, readonly=True, options=[0, 1], default=0),
+        ecc=dict(register=5, readonly=False, options=[0, 1], default=0),
         mavlink=dict(register=6, readonly=False, options=[0, 1, 2], default=1),
         oppresend=dict(register=7, readonly=False, options=[0, 1], default=0),
         min_freq=dict(register=8,
@@ -39,30 +39,30 @@ class Configurator(object):
                       default=434790),
         num_channels=dict(register=10,
                           readonly=False,
-                          options=range(5, 51),
+                          options=list(range(5, 51)),
                           default=20),
         duty_cycle=dict(register=11,
                         readonly=False,
-                        options=range(10, 101),
+                        options=list(range(10, 101)),
                         default=100),
         lbt_rssi=dict(register=12,
                       readonly=False,
-                      options=range(0, 256),
+                      options=list(range(0, 256)),
                       default=0),
         manchester=dict(register=13, readonly=False, options=[0, 1], default=0),
         rtscts=dict(register=14, readonly=False, options=[0, 1], default=0),
         nodeid=dict(register=15,
                     readonly=False,
-                    options=range(0, 30),
+                    options=list(range(0, 30)),
                     default=2),
         nodedestination=dict(register=16,
                              readonly=False,
-                             options=range(0, 30) + [65535],
+                             options=list(range(0, 30)) + [65535],
                              default=65535),
         syncany=dict(register=17, readonly=False, options=[0, 1], default=0),
         nodecount=dict(register=18,
                        readonly=False,
-                       options=range(2, 31),
+                       options=list(range(2, 31)),
                        default=5),
     )
 
@@ -82,9 +82,11 @@ class Configurator(object):
         self._current_params = dict()
 
     @staticmethod
-    def get_default_params():
+    def get_default_params(writable_only=True):
         params = dict()
         for param in Configurator.EEPROM_PARAMETERS:
+            if Configurator.EEPROM_PARAMETERS[param]["readonly"]:
+                continue
             params[param] = Configurator.EEPROM_PARAMETERS[param]["default"]
         return params
 

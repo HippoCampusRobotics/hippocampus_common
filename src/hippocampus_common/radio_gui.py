@@ -18,13 +18,6 @@ def scan_ports(prefix="ttyUSB"):
     return ports
 
 
-def get_combo_option_by_text(combobox, text):
-    for i in range(combobox.count()):
-        if text == combobox.itemText(i):
-            return i
-    return -1
-
-
 def enable_all_buttons_in_group(group, enabled):
     buttons = group.findChildren(QtWidgets.QPushButton)
     for button in buttons:
@@ -41,6 +34,20 @@ def show_message_box(message):
     message_diag = QtWidgets.QMessageBox()
     message_diag.setText("{}".format(message))
     message_diag.exec_()
+
+
+class ProgressDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super(ProgressDialog, self).__init__(parent)
+        self.progressbar = QtWidgets.QProgressBar(self)
+        self.progressbar.setMinimum(0)
+        self.progressbar.setMaximum(0)
+        self.progressbar.setFormat("%v/%m")
+
+    @QtCore.pyqtSlot(int, int)
+    def update_progress(self, progress, maximum):
+        self.progressbar.setMaximum(maximum)
+        self.progressbar.setValue(progress)
 
 
 class ComboBox(QtWidgets.QComboBox):
@@ -98,10 +105,10 @@ class ReadWriteParamsWorker(QtCore.QObject):
             self.progress.emit(0, len(self.names))
             for i, param in enumerate(self.names):
                 if self.values is None:
-                    ret_values[name] = self.fun(param)
+                    ret_values[param] = self.fun(param)
                 else:
-                    ret_values[name] = self.fun(param, self.values[i])
-                self.progress.emit(i, len(self.names))
+                    ret_values[param] = self.fun(param, self.values[i])
+                self.progress.emit(i + 1, len(self.names))
         self.ret.emit(ret_values)
         self.finished.emit()
 
@@ -112,6 +119,8 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
 
     connected = QtCore.pyqtSignal()
     disconnected = QtCore.pyqtSignal()
+    at_entered = QtCore.pyqtSignal()
+    at_exited = QtCore.pyqtSignal()
 
     def __init__(self):
         super(RadioConfiguratorWidget, self).__init__()
@@ -122,9 +131,6 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         self._enter_at_thread = None
         self._enter_at_worker = None
 
-        self._show_version_thread = None
-        self._show_version_worker = None
-
         self._read_params_thread = None
         self._read_params_worker = None
         self.setup_background_threads()
@@ -132,6 +138,8 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
                                "resource", "radio_configurator.ui")
 
         loadUi(ui_file, self)
+        self.at_entered.connect(self.on_at_entered)
+        self.at_exited.connect(self.on_at_exited)
         self.logging_handler = QTextEditLogger(self.console_text)
         self.logging_handler.setFormatter(
             logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
@@ -143,17 +151,9 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         self.disconnected.connect(self.on_disconnected)
         self.init_connection_group()
         self.eeprom_group.setEnabled(False)
-        self.init_eeprom_table()
-        self.init_splitter()
-
-    def init_splitter(self):
-        handle = self.splitter.handle(1)
-        layout = QtWidgets.QVBoxLayout(handle)
-        # layout.setSpacing(0)
-        line = QtWidgets.QFrame(handle)
-        line.setFrameShape(QtWidgets.QFrame.HLine)
-        line.setFrameShadow(QtWidgets.QFrame.Sunken)
-        layout.addWidget(line)
+        self.load_settings_progressbar.reset()
+        self.init_at_group()
+        self.init_param_widgets()
 
     def init_logging_radiobuttons(self):
         def connect_button_toggled(button):
@@ -198,89 +198,39 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         self._enter_at_worker = Worker(self.configurator.enter_at_mode)
         connect_worker_and_thread(worker=self._enter_at_worker,
                                   thread=self._enter_at_thread,
-                                  return_cb=self.on_enter_at_mode,
+                                  return_cb=self.on_enter_at_result,
                                   finished_cb=self.on_enter_at_finished)
-
-        self._show_version_thread = QtCore.QThread()
-        self._show_version_worker = Worker(self.configurator.show_version)
-        connect_worker_and_thread(worker=self._show_version_worker,
-                                  thread=self._show_version_thread,
-                                  return_cb=self.on_show_version,
-                                  finished_cb=self.on_show_version_finished)
 
         self._read_params_thread = QtCore.QThread()
         self._read_params_worker = ReadWriteParamsWorker(
-            self.configurator.read_parameters_from_eeprom)
+            self.configurator.read_param)
         connect_worker_and_thread(worker=self._read_params_worker,
                                   thread=self._read_params_thread,
                                   return_cb=self.on_read_params_result,
                                   finished_cb=self.on_read_params_finished)
+        self._read_params_worker.progress.connect(self.update_load_progressbar)
+
+        self._write_params_thread = QtCore.QThread()
+        self._write_params_worker = ReadWriteParamsWorker(
+            self.configurator.write_param)
+        connect_worker_and_thread(worker=self._write_params_worker,
+                                  thread=self._write_params_thread,
+                                  return_cb=self.on_write_params_result,
+                                  finished_cb=self.on_write_params_finished)
+        self._write_params_worker.progress.connect(
+            self.update_copy_settings_progressbar)
 
     def on_enter_at_finished(self):
         self._enter_at_thread.quit()
         self._enter_at_thread.wait()
 
-    def on_show_version_finished(self):
-        self._show_version_thread.quit()
-        self._show_version_thread.wait()
-
     def on_read_params_finished(self):
         self._read_params_thread.quit()
         self._read_params_thread.wait()
 
-    def get_table_column(self, name):
-        col = -1
-        name = name.lower()
-        for i in range(self.eeprom_table.columnCount()):
-            col_name = self.eeprom_table.horizontalHeaderItem(i).text().lower()
-            if name == col_name:
-                col = i
-                break
-        return col
-
-    def get_table_row(self, param_name):
-        col = -1
-        try:
-            col = self.configurator.EEPROM_PARAMETERS[
-                param_name.lower()]["register"]
-        except KeyError:
-            pass
-        return col
-
-    def get_eeprom_current_column(self):
-        return self.get_table_column("Current")
-
-    def get_eeprom_desired_column(self):
-        return self.get_table_column("Desired")
-
-    def get_eeprom_default_column(self):
-        return self.get_table_column("Default")
-
-    def get_eeprom_param_name_column(self):
-        return self.get_table_column("Param Name")
-
-    def init_eeprom_table(self):
-        params = self.configurator.EEPROM_PARAMETERS
-
-        default_col = self.get_eeprom_default_column()
-        param_name_col = self.get_eeprom_param_name_column()
-        desired_col = self.get_eeprom_desired_column()
-
-        for param in params:
-            row = params[param]["register"]
-            name = param.upper()
-            options = params[param]["options"]
-            default = params[param]["default"]
-            if options:
-                combo = QtWidgets.QComboBox()
-                combo.addItems([str(option) for option in options])
-                index = get_combo_option_by_text(combo, str(default))
-                combo.setCurrentIndex(index)
-                self.eeprom_table.setCellWidget(row, desired_col, combo)
-            item = QtWidgets.QTableWidgetItem(name)
-            self.eeprom_table.setItem(row, param_name_col, item)
-            item = QtWidgets.QTableWidgetItem(str(default))
-            self.eeprom_table.setItem(row, default_col, item)
+    def on_write_params_finished(self):
+        self._write_params_thread.quit()
+        self._write_params_thread.wait()
 
     def init_connection_group(self):
         self.port_combobox.popup.connect(self.update_port_combobox)
@@ -291,6 +241,8 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
 
     def init_at_group(self):
         self.at_group.setEnabled(False)
+        enable_all_buttons_in_group(self.at_group, False)
+        self.enter_at_button.setEnabled(True)
 
     def update_port_combobox(self):
         ports = scan_ports()
@@ -308,12 +260,14 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         self.logger.info("Connected to '%s@%s'", self.configurator.port.port,
                          self.configurator.port.baudrate)
         self.connect_button.setEnabled(False)
-        self._is_connected = True
         self.disconnect_button.setEnabled(True)
 
         self.eeprom_group.setEnabled(True)
+        self.load_settings_button.setEnabled(False)
+        self.copy_settings_button.setEnabled(False)
         self.at_group.setEnabled(True)
         self.connection_status_label.setText("connected")
+        self.do_enter_at_mode()
 
     @QtCore.pyqtSlot()
     def on_connect_button_clicked(self):
@@ -328,7 +282,6 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
             show_error_box(e)
             self.eeprom_group.setEnabled(False)
             self.connection_status_label.setText("failed to connect")
-            self._is_connected = False
         else:
             self.connected.emit()
 
@@ -339,47 +292,65 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         self.connection_status_label.setText("disconnected")
         self.at_group.setEnabled(False)
         self.eeprom_group.setEnabled(False)
+        self.load_settings_button.setEnabled(False)
+        self.copy_settings_button.setEnabled(False)
 
     @QtCore.pyqtSlot()
     def on_disconnect_button_clicked(self):
+        self.do_disconnect()
+
+    def do_disconnect(self):
         self.configurator.exit_at_mode()
         self.configurator.port.flush()
         self.configurator.port.close()
         self.disconnected.emit()
 
-    @QtCore.pyqtSlot()
-    def on_enter_at_button_clicked(self):
+    def do_enter_at_mode(self):
         if self._enter_at_thread.isRunning():
             show_error_box("You are already trying to enter AT mode.")
         else:
-            # self.enter_at_button.setEnabled(False)
+            self.enter_at_button.setEnabled(False)
             self.logger.info("Entering AT mode...")
+            self.at_mode_progressbar_connecting()
             self._enter_at_thread.start()
 
+    @QtCore.pyqtSlot()
+    def on_enter_at_button_clicked(self):
+        self.do_enter_at_mode()
+
+    @QtCore.pyqtSlot()
+    def on_at_entered(self):
+        self.at_mode_progressbar_connected()
+        enable_all_buttons_in_group(self.at_group, True)
+        self.enter_at_button.setEnabled(False)
+        enable_all_buttons_in_group(self.eeprom_group, True)
+
+    @QtCore.pyqtSlot()
+    def on_at_exited(self):
+        enable_all_buttons_in_group(self.at_group, False)
+        enable_all_buttons_in_group(self.eeprom_group, False)
+        self.enter_at_button.setEnabled(True)
+        self.at_mode_progressbar_disconnected()
+
     @QtCore.pyqtSlot(object)
-    def on_enter_at_mode(self, success):
+    def on_enter_at_result(self, success):
         if success:
             self.logger.info("Entered AT mode successfully.")
-            enable_all_buttons_in_group(self.at_group, True)
-            self.enter_at_button.setEnabled(False)
-            enable_all_buttons_in_group(self.eeprom_group, True)
+            self.at_entered.emit()
             self.start_read_all_params_thread()
         else:
             self.logger.error("Failed to enter AT mode.")
+            self.at_mode_progressbar_disconnected()
+            self.enter_at_button.setEnabled(True)
             show_error_box(
                 "Failed to enter AT mode. Make sure you are connected "
                 "to the correct device and selected the appropriate baud rate.")
-            enable_all_buttons_in_group(self.at_group, False)
-            self.enter_at_button.setEnabled(True)
-            enable_all_buttons_in_group(self.eeprom_group, False)
 
     @QtCore.pyqtSlot()
     def on_exit_at_button_clicked(self):
         self.configurator.exit_at_mode()
         self.logger.info("Exited AT mode.")
-        enable_all_buttons_in_group(self.at_group, False)
-        enable_all_buttons_in_group(self.eeprom_group, False)
-        self.enter_at_button.setEnabled(True)
+        self.at_exited.emit()
 
     @QtCore.pyqtSlot()
     def on_reboot_button_clicked(self):
@@ -388,31 +359,11 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         enable_all_buttons_in_group(self.at_group, False)
         enable_all_buttons_in_group(self.eeprom_group, False)
         self.enter_at_button.setEnabled(True)
+        self.at_mode_progressbar_disconnected()
 
     @QtCore.pyqtSlot()
-    def on_show_version_button_clicked(self):
-        if self._show_version_thread.isRunning():
-            show_error_box("Already reading version...")
-            self.logger.warn(
-                "Trying to read firmware version, but the thread is already "
-                "running.")
-        else:
-            self.logger.warn("Reading firmware version...")
-            self._show_version_thread.start()
-
-    @QtCore.pyqtSlot(object)
-    def on_show_version(self, version):
-        version = str(version)
-        if not version:
-            self.logger.error("Failed to read firmware version.")
-            show_error_box("Failed to get version!")
-        else:
-            self.logger.info("Firmware version: %s", version)
-            show_message_box(version)
-
-    @QtCore.pyqtSlot()
-    def on_refresh_button_clicked(self):
-        self.logger.debug("Refresh button clicked.")
+    def on_load_settings_button_clicked(self):
+        self.logger.debug("Load settings button clicked.")
         self.start_read_all_params_thread()
 
     def start_read_all_params_thread(self):
@@ -422,7 +373,29 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
             show_error_box("Already reading EEPROM...")
         else:
             self.logger.info("Refreshing current EEPROM parameters.")
+            params = self.configurator.EEPROM_PARAMETERS.keys()
+            self.load_settings_progressbar.setMinimum(0)
+            self.load_settings_progressbar.setMaximum(0)
+            self._read_params_worker.set_params(params)
             self._read_params_thread.start()
+
+    def start_write_params_thread(self):
+        if self._write_params_thread.isRunning():
+            show_error_box("Already copying parameters to radio.")
+        else:
+            params = self.get_current_params()
+            names = list(params.keys())
+            values = [params[name] for name in names]
+            self._write_params_worker.set_params(names, values)
+            self._write_params_thread.start()
+
+    def update_load_progressbar(self, progress, maximum):
+        self.load_settings_progressbar.setMaximum(maximum)
+        self.load_settings_progressbar.setValue(progress)
+
+    def update_copy_settings_progressbar(self, progress, maximum):
+        self.copy_settings_progressbar.setMaximum(maximum)
+        self.copy_settings_progressbar.setValue(progress)
 
     @QtCore.pyqtSlot(object)
     def on_read_params_result(self, params):
@@ -430,71 +403,18 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
             self.logger.error("Failed to read EEPROM parameters!")
             show_error_box("Failed to read EEPROM!")
         else:
-            column = self.get_eeprom_current_column()
-            failed_names = []
-            failed_params = []
-            for param in params:
-                row = self.get_table_row(param)
-                if row < 0:
-                    failed_names.append(param)
+            writable_params = dict()
+            for name in params:
+                if radio_tools.Configurator.EEPROM_PARAMETERS[name]["readonly"]:
                     continue
-                current_item = self.eeprom_table.item(row, column)
-                if params[param] is None:
-                    failed_params.append(param)
-                    continue
-                if not current_item:
-                    item = QtWidgets.QTableWidgetItem(str(params[param]))
-                    self.eeprom_table.setItem(row, column, item)
-                else:
-                    self.eeprom_table.item(row,
-                                           column).setText(str(params[param]))
-            self.logger.info("Refreshed EEPROM paramters successfully.")
-            if len(failed_names) > 0:
-                self.logger.error("Failed to display following paramters: %s",
-                                  failed_names)
-                show_error_box(
-                    "Failed to display following parameters: {}".format(
-                        failed_names))
+                writable_params[name] = params[name]
+                self.set_param_combobox(name, params[name])
+            self.radio_params = writable_params
 
-            if len(failed_params) > 0:
-                self.logger.error("Failed to read following parameters: %s",
-                                  failed_params)
-                show_error_box("Failed to read following parameters: {}".format(
-                    failed_params))
-
-    def set_desired_cell(self, row, value):
-        col = self.get_eeprom_desired_column()
-        if col < 0:
-            return False
-        value = str(value)
-        widget = self.eeprom_table.cellWidget(row, col)
-        if widget is None:
-            item = QtWidgets.QTableWidgetItem(value)
-            self.eeprom_table.setItem(row, col, item)
-        elif isinstance(widget, QtWidgets.QComboBox):
-            index = get_combo_option_by_text(widget, value)
-            if index < 0:
-                return False
-            widget.setCurrentIndex(index)
-        else:
-            item = self.eeprom_table.item(row, col)
-            item.setText(value)
-        return True
-
-    def copy_column_to_desired(self, col):
-        failed = []
-        for row in range(self.eeprom_table.rowCount()):
-            try:
-                value = self.eeprom_table.item(row, col).text()
-            except AttributeError:
-                failed.append(row)
-            else:
-                success = self.set_desired_cell(row, value)
-                if not success:
-                    failed.append(row)
-        if len(failed) > 0:
-            show_error_box(
-                "Failed to read or set the following rows: {}".format(failed))
+    @QtCore.pyqtSlot(object)
+    def on_write_params_result(self, result):
+        if not all(result):
+            show_error_box("Some parameters could not be written.")
 
     @QtCore.pyqtSlot()
     def on_set_default_button_clicked(self):
@@ -502,75 +422,162 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         col = self.get_eeprom_default_column()
         self.copy_column_to_desired(col)
 
-    @QtCore.pyqtSlot()
-    def on_revert_button_clicked(self):
-        self.logger.debug("Revert button clicked.")
-        col = self.get_eeprom_current_column()
-        self.copy_column_to_desired(col)
+    def at_mode_progressbar_connecting(self):
+        self.at_mode_progressbar.setMaximum(0)
+        self.at_mode_progressbar.setMinimum(0)
+        self.at_mode_progressbar.setEnabled(True)
+
+    def at_mode_progressbar_connected(self):
+        self.at_mode_progressbar.setMaximum(1)
+        self.at_mode_progressbar.setMinimum(0)
+        self.at_mode_progressbar.setValue(1)
+        self.at_mode_progressbar.setEnabled(True)
+
+    def at_mode_progressbar_disconnected(self):
+        self.at_mode_progressbar.setMaximum(1)
+        self.at_mode_progressbar.setMinimum(0)
+        self.at_mode_progressbar.setValue(1)
+        self.at_mode_progressbar.setEnabled(False)
 
     @QtCore.pyqtSlot()
-    def on_apply_button_clicked(self):
+    def on_get_standard_settings_button_clicked(self):
+        self.set_standard_settings()
+
+    @QtCore.pyqtSlot()
+    def on_compare_button_clicked(self):
+        self.show_compare_dialog()
+
+    @QtCore.pyqtSlot()
+    def on_copy_settings_button_clicked(self):
+        if self.show_confirm_changes_dialog():
+            if self.show_eeprom_warning():
+                self.start_write_params_thread()
+
+    def set_standard_settings(self):
         params = radio_tools.Configurator.get_default_params()
-        desired_col = self.get_eeprom_desired_column()
-        current_col = self.get_eeprom_current_column()
-        name_col = self.get_eeprom_param_name_column()
-        unset_params = []
-        unknown_params = []
-        changed_params = {}
-        for row in range(self.eeprom_table.rowCount()):
-            name = self.eeprom_table.item(row, name_col).text().lower()
-            if name not in params:
-                unknown_params.append(name)
-                continue
-            widget = self.eeprom_table.cellWidget(row, desired_col)
-            if isinstance(widget, QtWidgets.QComboBox):
-                value = widget.currentText()
-            else:
-                try:
-                    value = self.eeprom_table.item(row, desired_col).text()
-                except AttributeError:
-                    unset_params.append(name)
-                    continue
-            params[name] = value
-            current_value = self.eeprom_table.item(row, current_col).text()
-            if value != current_value:
-                changed_params[name] = dict(old_val=current_value,
-                                            new_val=value)
-        text = "Chaning following parameters:\n\n"
-        for param_name in changed_params:
-            text += "{}: {} -> {}\n".format(
-                param_name, changed_params[param_name]["old_val"],
-                changed_params[param_name]["new_val"])
-        text += "\nDo you want to continue?"
-        reply = QtWidgets.QMessageBox.question(self, "Apply Changes", text,
-                                               QtWidgets.QMessageBox.Yes,
-                                               QtWidgets.QMessageBox.No)
-        if reply == QtWidgets.QMessageBox.No:
-            self.logger.info("Writing of parameters canceled.")
-            return
-        self.configurator.enter_at_mode()
-        self.configurator.set_desired_params(params)
-        self.logger.info("Writing paramters...")
-        failed_params = self.configurator.write_params()
-        if len(failed_params) > 0:
-            show_error_box("Failed to write params: {}".format(failed_params))
-        self.start_read_all_params_thread()
-        if len(unset_params):
-            show_message_box(
-                "Ignored unset parameters: {}".format(unset_params))
-        if len(unknown_params):
-            show_error_box("Unknown parameters could not be written: {}".format(
-                unknown_params))
+        for name in params:
+            self.set_default_combobox(name)
 
-    @QtCore.pyqtSlot()
-    def on_make_persistent_button_clicked(self):
-        reply = QtWidgets.QMessageBox.question(
-            self, "Writing EEPROM",
-            "Writing EEPROM is required to make changes persistent. Keep in mind, that the number of EEPROM writes is limited.\nContinue?",
-            QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
-        if reply == QtWidgets.QMessageBox.Yes:
-            self.on_apply_button_clicked()
-            self.configurator.write_eeprom()
-            show_message_box(
-                "EEPROM has been written :-)\n\nSome parameter changes may require a reboot to take effect."
-            )
+    def get_combobox_ref(self, name):
+        try:
+            combobox = getattr(self, name)
+        except AttributeError:
+            self.logger.warn("No widget with name: '%s' was found.", name)
+            return None
+        return combobox
+
+    def set_param_combobox(self, param_name, value):
+        name = param_name + "_combobox"
+        combobox = self.get_combobox_ref(name)
+        if combobox is None:
+            return False
+        index = combobox.findText(str(value))
+        if index < 0:
+            return False
+        else:
+            combobox.setCurrentIndex(index)
+            return True
+
+    def set_default_combobox(self, param_name):
+        try:
+            value = radio_tools.Configurator.get_default_params()[param_name]
+        except KeyError:
+            self.logger.error("Could not find default value for '%s'.",
+                              param_name)
+            return False
+        return self.set_param_combobox(param_name, value)
+
+    def get_param_combobox(self, param_name):
+        name = param_name + "_combobox"
+        combobox = self.get_combobox_ref(name)
+        if combobox is None:
+            return None
+        return combobox.currentText()
+
+    def init_param_combobox(self, param_name, options, default):
+        options = [str(option) for option in options]
+        name = param_name + "_combobox"
+        combobox = self.get_combobox_ref(name)
+        if combobox is None:
+            return False
+        combobox.clear()
+        combobox.addItems(options)
+        if default is None:
+            return True
+        index = combobox.findText(str(default))
+        if index < 0:
+            return False
+        else:
+            combobox.setCurrentIndex(index)
+            return True
+
+    def init_param_widgets(self, set_default=False):
+        params = radio_tools.Configurator.EEPROM_PARAMETERS
+        for name in params:
+            if params[name]["readonly"]:
+                continue
+            options = params[name]["options"]
+            default = params[name]["default"] if set_default else None
+            self.init_param_combobox(name, options, default)
+
+    def get_current_params(self):
+        names = list(radio_tools.Configurator.get_default_params().keys())
+        params = dict()
+        for name in names:
+            params[name] = self.get_param_combobox(name)
+        return params
+
+    def get_changed_params(self):
+        current_params = self.get_current_params()
+        diff = dict()
+        for name in current_params:
+            old = int(self.radio_params[name])
+            new = int(current_params[name])
+            if old != new:
+                diff[name] = dict(old=old, new=new)
+        return diff
+
+    def show_compare_dialog(self):
+        diff = self.get_changed_params()
+        if diff:
+            text = "Following parameters changed:\n\n"
+            for name in diff:
+                text += "{}: {} -> {}\n".format(name, diff[name]["old"],
+                                                diff[name]["new"])
+        else:
+            text = "No paramters changed."
+        show_message_box(text)
+
+    def show_confirm_changes_dialog(self):
+        diff = self.get_changed_params()
+        if diff:
+            text = "Following parameters will be changed:\n\n"
+            for name in diff:
+                text += "{}: {} -> {}\n".format(name, diff[name]["old"],
+                                                diff[name]["new"])
+        else:
+            text = "No paramters changed."
+        text += "\n\n Continue?"
+        diag = QtWidgets.QMessageBox
+        reply = diag.question(self, "Confirm changes", text, diag.Yes | diag.No)
+        if reply == diag.Yes:
+            return True
+        else:
+            return False
+
+    def show_eeprom_warning(self):
+        text = (
+            "Parameters are going to be written to the EEPROM.\n\nKeep in "
+            "mind that the number of EEPROM writes is limited and this action "
+            "should be only performed if necessary.\n\nContinue?")
+        diag = QtWidgets.QMessageBox
+        reply = diag.warning(self, "Confirm EEPROM write", text,
+                             diag.Yes | diag.No)
+        if reply == diag.Yes:
+            return True
+        else:
+            return False
+
+    def closeEvent(self, event):
+        self.do_disconnect()
+        event.accept()
