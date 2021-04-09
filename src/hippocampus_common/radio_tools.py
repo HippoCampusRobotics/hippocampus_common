@@ -7,6 +7,232 @@ import time
 import re
 
 
+class Firmware(object):
+    def __init__(self, path):
+        self.ranges = dict()
+        self.upperaddress = 0x0000
+        self.banking_detected = False
+        self.sanity_check = dict()
+
+
+class FirmwareUploader(object):
+    NOP = chr(0x00)
+    OK = chr(0x10)
+    FAILED = chr(0x11)
+    INSYNC = chr(0x12)
+    EOC = chr(0x20)
+    GET_SYNC = chr(0x21)
+    GET_DEVICE = chr(0x22)
+    CHIP_ERASE = chr(0x23)
+    LOAD_ADDRESS = chr(0x24)
+    PROG_FLASH = chr(0x25)
+    READ_FLASH = chr(0x26)
+    PROG_MULTI = chr(0x27)
+    READ_MULTI = chr(0x28)
+    PARAM_ERASE = chr(0x29)
+    REBOOT = chr(0x30)
+
+    PROG_MULTI_MAX = 32  # 64 causes serial hangs with some USB-serial adapters
+    READ_MULTI_MAX = 255
+    BANK_PROGRAMING = -1
+
+    def __init__(self, port=None, at_baud=57600, bootloader_baud=115200):
+        self.port = serial.Serial(port=port,
+                                  baudrate=bootloader_baud,
+                                  timeout=3)
+        self.at_baud = at_baud
+        self.bootloader_baud = bootloader_baud
+
+    def _read(self):
+        c = self.port.read().decode("utf-8")
+        if len(c) < 1:
+            raise RuntimeError("Read timeout.")
+        return c
+
+    def send(self, string):
+        self.port.write(string.encode())
+
+    def _get_sync(self):
+        c = self._read()
+        if c != self.INSYNC:
+            raise RuntimeError("Sync failed. Expected INSYNC=0x{:02X} but got "
+                               "0x{:02X}.".format(ord(self.INSYNC), ord(c)))
+        c = self._read()
+        if c != self.OK:
+            raise RuntimeError("Sync failed. Expected OK=0x{:02X} but got "
+                               "0x{:02X}.".format(ord(self.OK), ord(c)))
+
+    def _sync(self):
+        self.send(self.PROG_MULTI_MAX)
+        self.port.reset_input_buffer()
+        self.send(self.GET_SYNC + self.EOC)
+        self._get_sync()
+
+    def _erase(self, erase_params=False):
+        self.send(self.CHIP_ERASE + self.EOC)
+        self._get_sync()
+        if erase_params:
+            self.send(self.PARAM_ERASE + self.EOC)
+            self._get_sync()
+
+    def _set_address(self, address, banking):
+        if banking:
+            if self.BANK_PROGRAMING != (address >> 16):
+                self.BANK_PROGRAMING = address >> 16
+                if self.BANK_PROGRAMING == 0:
+                    print("HOME")
+                else:
+                    print("BANK", self.BANK_PROGRAMING)
+            self.send(self.LOAD_ADDRESS + chr(address & 0xFF) +
+                      chr((address >> 8) & 0xFF) + chr((address >> 16) & 0xFF) +
+                      self.EOC)
+        else:
+            self.send(self.LOAD_ADDRESS + chr(address & 0xFF) +
+                      chr(address >> 8) + self.EOC)
+        self._get_sync()
+
+    def _program_single(self, data):
+        self.send(self.PROG_FLASH + chr(data) + self.EOC)
+        self.__get_sync()
+
+    def _program_multi(self, data):
+        sync_count = 0
+        while len(data):
+            n = min(len(data), self.PROG_MULTI_MAX)
+            block = data[:n]
+            block = data[:n]
+            data = data[n:]
+            self.send(self.PROG_MULTI + chr(n))
+            self.send(block)
+            self.send(self.EOC)
+            sync_count += 1
+        for _ in range(sync_count):
+            self._get_sync()
+
+    def _verify_byte(self, data):
+        self.send(self.READ_FLASH + self.EOC)
+        if self._read() != chr(data):
+            return False
+        self._get_sync()
+        return True
+
+    def _verify_multi(self, data):
+        self.send(self.READ_MULTI + chr(len(data)) + self.EOC)
+        for i in data:
+            if self._read() != chr(i):
+                return False
+        self._get_sync()
+        return True
+
+    def _reboot(self):
+        self.send(self.REBOOT)
+
+    def _split(self, seq, length):
+        return [seq[i:i + length] for i in range(0, len(seq), length)]
+
+    def total_size(self, code):
+        total = 0
+        for address in code.keys():
+            total += len(code[address])
+        return total
+
+    def _program(self, firmware):
+        code = firmware.code()
+        count = 0
+        total = self.total_size(code)
+        for address in sorted(code.keys()):
+            self._set_address(address, firmware.banking_deteted)
+            groups = self._split(code[address], self.PROG_MULTI_MAX)
+            for bytes in groups:
+                self._program_multi(bytes)
+                count += len(bytes)
+
+    def _verify(self, firmware):
+        code = firmware.code()
+        count = 0
+        total = self.total_size(code)
+        for address in sorted(code.keys()):
+            self._set_address(address, firmware.banking_deteted)
+            groups = self._split(code[address], self.READ_MULTI_MAX)
+            for bytes in groups:
+                if not self._verify_multi(bytes):
+                    raise RuntimeError(
+                        "Verification failed at 0x{:02X}".format(address))
+                count += len(bytes)
+
+    def expect(self, pattern, timeout):
+        pattern = re.compile(pattern)
+        start = time.time()
+        s = ""
+        while time.time() < start + timeout:
+            b = self.port.read.decode("utf-8")
+            if b:
+                if pattern.search(s) is not None:
+                    return True
+            else:
+                time.sleep(0.01)
+        return False
+
+    def sync_at(self):
+        if self.at_baud != self.port.baudrate:
+            self.port.baudrate = self.at_baud
+        self.send("\r\n")
+        time.sleep(1.0)
+        self.send("+++")
+        self.expect("OK", timeout=2.0)
+        for i in range(5):
+            self.send("\r\nATI\r\n")
+            if not self.expect("SiK .* on", timeout=0.5):
+                print("Failed to get SiK banner")
+                continue
+            else:
+                return True
+        return False
+
+    def autosync(self):
+        if self.sync_at():
+            self.send("\r\n")
+            time.sleep(0.2)
+            self.port.reset_input_buffer()
+            self.send("AT&UPDATE\r\n")
+            time.sleep(0.7)
+            self.port.reset_input_buffer()
+            self.port.baudrate = self.bootloader_baud
+            return True
+        self.port.baudrate = self.bootloader_baud
+        return False
+
+    def check_bootloader(self):
+        for i in range(3):
+            try:
+                if self._sync():
+                    return True
+                self.autosync()
+            except RuntimeError:
+                self.autosync()
+        return False
+
+    def identify(self):
+        self._send(self.GET_DEVICE + self.EOC)
+        board_id = ord(self._read()[0])
+        board_freq = ord(self._read()[0])
+        self._get_sync()
+        return board_id, board_freq
+
+    def upload(self, firmware, erase_params=False):
+        if not self.check_bootloader():
+            raise RuntimeError("Failed to contact bootloader")
+        board_id, board_freq = self.identify()
+        if firmware.banking_detected and not (board_id & 0x80):
+            raise RuntimeError("This firmware requires a CPU with banking.")
+        if (board_id & 0x80):
+            firmware.banking_detected = True
+        self._erase(erase_params=erase_params)
+        self._program(firmware)
+        self._verify(firmware)
+        self._reboot()
+
+
 class Configurator(object):
 
     EEPROM_PARAMETERS = dict(
@@ -20,7 +246,9 @@ class Configurator(object):
             readonly=False,
             options=[2, 4, 8, 16, 19, 24, 32, 48, 64, 96, 128, 192, 250],
             default=64),
-        netid=dict(register=3, readonly=False, options=list(range(0, 26)),
+        netid=dict(register=3,
+                   readonly=False,
+                   options=list(range(0, 26)),
                    default=25),
         txpower=dict(register=4,
                      readonly=False,
