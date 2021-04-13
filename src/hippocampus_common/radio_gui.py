@@ -84,6 +84,39 @@ class Worker(QtCore.QObject):
         self.finished.emit()
 
 
+class UploadWorker(QtCore.QObject):
+    ret = QtCore.pyqtSignal(object)
+    finished = QtCore.pyqtSignal()
+    program_progress = QtCore.pyqtSignal(int, int)
+    verify_progress = QtCore.pyqtSignal(int, int)
+
+    def __init__(self, fun=None, path=None):
+        super(UploadWorker, self).__init__()
+        self.upload = fun
+        self.path = path
+
+    def set_fun(self, fun):
+        self.upload = fun
+
+    def set_path(self, path):
+        self.path = path
+
+    def on_program_progress(self, progress, total):
+        self.program_progress.emit(progress, total)
+
+    def on_verify_progress(self, progress, total):
+        self.verify_progress.emit(progress, total)
+
+    def run(self):
+        ret = None
+        try:
+            ret = self.upload(self.path)
+        except Exception as e:
+            logger.error("Error during firmware upload: %s", e)
+        self.ret.emit(ret)
+        self.finished.emit()
+
+
 class ReadWriteParamsWorker(QtCore.QObject):
     ret = QtCore.pyqtSignal(object)
     finished = QtCore.pyqtSignal()
@@ -220,6 +253,21 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         self._write_params_worker.progress.connect(
             self.update_copy_settings_progressbar)
 
+        self._upload_firmware_thread = QtCore.QThread()
+        self._upload_firmware_worker = UploadWorker()
+        connect_worker_and_thread(worker=self._upload_firmware_worker,
+                                  thread=self._upload_firmware_thread,
+                                  return_cb=self.on_upload_firmware_result,
+                                  finished_cb=self.on_upload_firmware_finished)
+        self._upload_firmware_worker.set_fun(
+            lambda path: self.configurator.upload_firmware(
+                path, self._upload_firmware_worker.on_program_progress, self.
+                _upload_firmware_worker.on_verify_progress))
+        self._upload_firmware_worker.program_progress.connect(
+            self.on_program_progress)
+        self._upload_firmware_worker.verify_progress.connect(
+            self.on_verify_progress)
+
     def on_enter_at_finished(self):
         self._enter_at_thread.quit()
         self._enter_at_thread.wait()
@@ -231,6 +279,22 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
     def on_write_params_finished(self):
         self._write_params_thread.quit()
         self._write_params_thread.wait()
+
+    def on_upload_firmware_finished(self):
+        self._upload_firmware_thread.quit()
+        self._upload_firmware_thread.wait()
+        self.upload_button.setEnabled(True)
+
+    @QtCore.pyqtSlot(object)
+    def on_upload_firmware_result(self, result):
+        if not result:
+            txt = "Failed to upload/verify firmware!"
+            self.logger.error(txt)
+            show_error_box(txt)
+        else:
+            txt = "Firmware upload completed successfully."
+            self.logger.info(txt)
+            show_message_box(txt)
 
     def init_connection_group(self):
         self.port_combobox.popup.connect(self.update_port_combobox)
@@ -255,6 +319,18 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
                     self.port_combobox.setCurrentIndex(i)
                     break
 
+    @QtCore.pyqtSlot(int, int)
+    def on_program_progress(self, progress, total):
+        self.program_progressbar.setMinimum(0)
+        self.program_progressbar.setMaximum(total)
+        self.program_progressbar.setValue(progress)
+
+    @QtCore.pyqtSlot(int, int)
+    def on_verify_progress(self, progress, total):
+        self.verify_progressbar.setMinimum(0)
+        self.verify_progressbar.setMaximum(total)
+        self.verify_progressbar.setValue(progress)
+
     @QtCore.pyqtSlot()
     def on_connected(self):
         self.logger.info("Connected to '%s@%s'", self.configurator.port.port,
@@ -263,6 +339,7 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         self.disconnect_button.setEnabled(True)
 
         self.eeprom_group.setEnabled(True)
+        self.firmware_group.setEnabled(True)
         self.load_settings_button.setEnabled(False)
         self.copy_settings_button.setEnabled(False)
         self.at_group.setEnabled(True)
@@ -292,6 +369,7 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         self.connection_status_label.setText("disconnected")
         self.at_group.setEnabled(False)
         self.eeprom_group.setEnabled(False)
+        self.firmware_group.setEnabled(False)
         self.load_settings_button.setEnabled(False)
         self.copy_settings_button.setEnabled(False)
 
@@ -362,6 +440,21 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
         self.at_mode_progressbar_disconnected()
 
     @QtCore.pyqtSlot()
+    def on_browse_button_clicked(self):
+        path = QtWidgets.QFileDialog.getOpenFileName(self, "Select Firmware", filter="Intel Hex file (*.ihx)")[0]
+        self.logger.debug("Firmware selected: %s", path)
+        if os.path.isfile(path):
+            self.file_lineedit.setText(path)
+
+    @QtCore.pyqtSlot()
+    def on_upload_button_clicked(self):
+        path = self.file_lineedit.text()
+        if os.path.isfile(path):
+            self.start_upload_firmware_thread(path)
+        else:
+            show_error_box("The specified firmware file '{}' does not exist.".format(path))
+
+    @QtCore.pyqtSlot()
     def on_load_settings_button_clicked(self):
         self.logger.debug("Load settings button clicked.")
         self.start_read_all_params_thread()
@@ -389,6 +482,15 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
             self._write_params_worker.set_params(names, values)
             self._write_params_thread.start()
 
+    def start_upload_firmware_thread(self, path):
+        if self._upload_firmware_thread.isRunning():
+            show_error_box("Already uploading firmware...")
+        else:
+            self.upload_button.setEnabled(False)
+            self.at_exited.emit()
+            self._upload_firmware_worker.set_path(path)
+            self._upload_firmware_thread.start()
+
     def update_load_progressbar(self, progress, maximum):
         self.load_settings_progressbar.setMaximum(maximum)
         self.load_settings_progressbar.setValue(progress)
@@ -403,6 +505,7 @@ class RadioConfiguratorWidget(QtWidgets.QWidget):
             self.logger.error("Failed to read EEPROM parameters!")
             show_error_box("Failed to read EEPROM!")
         else:
+            self.logger.debug("Received params: %s", params)
             writable_params = dict()
             for name in params:
                 if radio_tools.Configurator.EEPROM_PARAMETERS[name]["readonly"]:
