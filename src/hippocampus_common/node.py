@@ -80,17 +80,17 @@ class Node(object):
         try:
             param = rospy.get_param(name)
         except KeyError:
-            rospy.set_param(name, default)
             param = default
             if default is None:
                 rospy.logwarn(
                     "[{}] No default value given for parameter '{}', unexpected"
                     " behaviour possible.".format(rospy.get_name(), name))
             else:
+                rospy.set_param(name, default)
                 rospy.logwarn("[{}] Parameter '{}' does not exist. "
                               "Using default value '{}'.".format(
                                   rospy.get_name(), name, default))
-        finally:
+        else:
             if verbose:
                 param_string = "{}".format(param)
                 if limit > 0 and len(param_string) > limit:
