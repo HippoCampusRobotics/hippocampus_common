@@ -1,20 +1,25 @@
 <launch>
-    <arg name="vehicle_name"/>
+    <arg name="vehicle_name" />
     <arg name="camera_info_url" default="file://$(find camera)/config/calib_ov9281_00.yaml" />
     <arg name="camera_name" default="vertical_camera" />
     <arg name="camera_frame_id" default="camera_frame" />
     <arg name="framerate" default="10" />
     <arg name="base_topic" default="image_raw" />
     <arg name="qgc_ip" doc="IP address of computer running QGroundControl" />
+    <arg name="fcu_url" default="/dev/fcu_usb" />
+    <arg name="respawn_mavros" default="true" />
+    <arg name="mavlink_id" default="1" doc="The system ID identifiying the vehicle. Must match PX4 parameter MAV_SYS_ID." />
 
     <group ns="$(arg vehicle_name)">
         <!-- camera -->
-        <include file="$(find camera)/launch/camera_node.launch" pass_all_args="true"/>
+        <include file="$(find camera)/launch/camera_node.launch" pass_all_args="true" />
 
         <!-- mavros -->
         <include file="$(find mavros)/launch/px4.launch">
-            <arg name="fcu_url" value="/dev/fcu_tele:921600" />
+            <arg name="fcu_url" value="$(arg fcu_url)" />
             <arg name="gcs_url" value="udp://@$(arg qgc_ip):14550" />
+            <arg name="respawn_mavros" value="$(arg respawn_mavros)" />
+            <arg name="tgt_system" value="$(arg mavlink_id)" />
         </include>
     </group>
 </launch>
