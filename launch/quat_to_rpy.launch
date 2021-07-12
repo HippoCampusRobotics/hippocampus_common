@@ -1,19 +1,19 @@
 <launch>
     <node pkg="hippocampus_common" type="quat_to_rpy_node" name="pose_to_rpy_vision" output="screen">
-        <param name="msg_type" value="PoseWithCovarianceStamped"/>
-        <remap from="orientation" to="mavros/vision_pose/pose_cov"/>
-        <remap from="rpy" to="rpy_vision"/>
+        <param name="msg_type" value="PoseWithCovarianceStamped" />
+        <remap from="orientation" to="mavros/vision_pose/pose_cov" />
+        <remap from="rpy" to="rpy_vision" />
     </node>
-    
+
     <node pkg="hippocampus_common" type="quat_to_rpy_node" name="pose_to_rpy_px4" output="screen">
-        <param name="msg_type" value="PoseStamped"/>
-        <remap from="orientation" to="mavros/local_position/pose"/>
-        <remap from="rpy" to="rpy_pose_px4"/>
+        <param name="msg_type" value="PoseStamped" />
+        <remap from="orientation" to="mavros/local_position/pose" />
+        <remap from="rpy" to="rpy_pose_px4" />
     </node>
 
     <node pkg="hippocampus_common" type="quat_to_rpy_node" name="target_to_rpy_px4" output="screen">
-        <param name="msg_type" value="AttitudeTarget"/>
-        <remap from="orientation" to="mavros/setpoint_raw/target_attitude"/>
-        <remap from="rpy" to="rpy_target_px4"/>
+        <param name="msg_type" value="AttitudeTarget" />
+        <remap from="orientation" to="mavros/setpoint_raw/target_attitude" />
+        <remap from="rpy" to="rpy_target_px4" />
     </node>
 </launch>

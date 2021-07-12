@@ -1,7 +1,7 @@
 <launch>
     <!-- camera and mavros need to be started on hippocampus -->
 
-    <arg name="vehicle_name"/>
+    <arg name="vehicle_name" />
     <arg name="vehicle_type" default="hippocampus" />
 
     <!-- camera/image processing specific-->
@@ -18,22 +18,17 @@
     <group ns="$(arg vehicle_name)">
         <param name="vehicle_name" value="$(arg vehicle_name)" />
         <param name="vehicle_type" value="$(arg vehicle_type)" />
-        
+
         <include file="$(find hippocampus_common)/launch/tf_publisher.launch" pass_all_args="true" />
-        
+
         <include file="$(find hippocampus_common)/launch/image_decoding.launch" pass_all_args="true">
             <arg name="output_topic" value="$(arg image_raw_topic)" />
         </include>
 
         <include file="$(find mu_auv_localization)/launch/localization.launch" pass_all_args="true" />
-        
-        <!-- convert orientation from quaternion to roll, pitch, yaw -->
-        <include file="$(find hippocampus_common)/launch/quat_to_rpy.launch"/>
 
-        <!-- path description, path follower, depth control, attitude mixer -->
-        <include file="$(find control)/launch/attitude_control.launch">
-            <arg name="use_ground_truth" value="false" />
-        </include>
+        <!-- convert orientation from quaternion to roll, pitch, yaw -->
+        <include file="$(find hippocampus_common)/launch/quat_to_rpy.launch" />
     </group>
 
 </launch>
