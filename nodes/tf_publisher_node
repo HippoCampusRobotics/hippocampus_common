@@ -21,7 +21,6 @@ Non-static:
 
 This node also takes care of necessary/useful coordinate transformations and
 publishes the transformed data as PoseStamped/TwistStamped:
-- mavros/local_position/pose in ENU frame to px4's NED frame -> /pose_px4
 - ground truth:
     The twist ground truth provided by this plugin
     https://github.com/ros-simulation/gazebo_ros_pkgs/blob/melodic-devel/gazebo_plugins/src/gazebo_ros_p3d.cpp
@@ -78,9 +77,6 @@ class TfPublisherNode(Node):
         # Send all static transforms at init
         self.broadcast_static_tf()
 
-        # publisher for ENU -> NED transformation of vehicle base link pose
-        self.pose_pub = rospy.Publisher("pose_px4", PoseStamped, queue_size=1)
-
         # publisher for ground truth twist transformation
         self.ground_truth_twist_pub = rospy.Publisher(
             "ground_truth/twist_body_frame", TwistStamped, queue_size=1)
@@ -96,11 +92,8 @@ class TfPublisherNode(Node):
                          queue_size=1)
 
     def pose_callback(self, pose_msg):
-        # 1) broadcast the pose as a transform:
+        # broadcast the pose as a transform:
         self.broadcast_base_link_tf(pose_msg)
-
-        # 2) publish the pose transformed from ENU frame into px4's NED frame:
-        self.publish_pose_px4(pose_msg)
 
     def ground_truth_odom_callback(self, odom_msg):
         # 1) broadcast the ground truth pose as a transform:
@@ -146,25 +139,6 @@ class TfPublisherNode(Node):
             self.tf_helper.get_base_link_ground_truth_id()
 
         self.tf_broadcaster.sendTransform(transform)
-
-    def publish_pose_px4(self, pose_msg):
-        # switch from ros body frame convention to px4 body frame convention
-        pose = self.tf_helper.pose_flu_to_frd(pose_msg)
-
-        # switch from ros world frame convention to px4 world frame convention
-        transform = self.tf_helper.tf_buffer.lookup_transform(
-            target_frame="map_ned",
-            source_frame=pose.header.frame_id,
-            time=rospy.Time(0),
-            timeout=rospy.Duration(1))
-
-        # transform the pose
-        pose = tf2_geometry_msgs.do_transform_pose(pose, transform)
-        # fill out pose header stamp with same time as pose_msg
-        pose.header.stamp = pose_msg.header.stamp
-
-        # publish the message of the transformed pose.
-        self.pose_pub.publish(pose)
 
     def publish_twist_body_frame(self, odom_msg):
         # TwistStamped msg
