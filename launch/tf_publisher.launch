@@ -3,7 +3,7 @@
     <arg name="vehicle_type" doc="Either 'hippocampus' or 'bluerov'."/>
     <arg name="sensor_pose_config_file" default="$(arg vehicle_type)_sensor_poses_default.yaml"/>
 
-    <node pkg="hippocampus_common" type="tf_publisher_node" name="tf_publisher_node" output="screen">
+    <node pkg="hippocampus_common" type="tf_publisher_node" name="tf_publisher_node" output="screen" clear_params="true">
         <rosparam command="load" file="$(find hippocampus_common)/config/$(arg sensor_pose_config_file)" />
     </node>
 </launch>
