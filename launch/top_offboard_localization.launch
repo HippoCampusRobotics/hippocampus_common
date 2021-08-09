@@ -19,16 +19,16 @@
         <param name="vehicle_name" value="$(arg vehicle_name)" />
         <param name="vehicle_type" value="$(arg vehicle_type)" />
 
-        <include file="$(find hippocampus_common)/launch/tf_publisher.launch" pass_all_args="true" />
+        <include file="$(find hippocampus_common)/launch/node_tf_publisher.launch" pass_all_args="true" />
 
-        <include file="$(find hippocampus_common)/launch/image_decoding.launch" pass_all_args="true">
+        <include file="$(find hippocampus_common)/launch/node_image_decoding.launch" pass_all_args="true">
             <arg name="output_topic" value="$(arg image_raw_topic)" />
         </include>
 
         <include file="$(find mu_auv_localization)/launch/localization.launch" pass_all_args="true" />
 
         <!-- convert orientation from quaternion to roll, pitch, yaw -->
-        <include file="$(find hippocampus_common)/launch/quat_to_rpy.launch" />
+        <include file="$(find hippocampus_common)/launch/inc_quat_to_rpy.launch" />
     </group>
 
 </launch>

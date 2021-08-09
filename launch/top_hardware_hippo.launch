@@ -1,6 +1,7 @@
 <launch>
     <arg name="vehicle_name" />
     <arg name="calibration_file" />
+    
     <arg name="camera_name" default="vertical_camera" />
     <arg name="camera_frame_id" default="camera_frame" />
     <arg name="framerate" default="10" />
