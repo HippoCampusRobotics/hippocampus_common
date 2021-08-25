@@ -9,6 +9,9 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   geometry_msgs
   nav_msgs
+  mavros
+  mavros_msgs
+  mavros_extras
 )
 
 catkin_python_setup()
