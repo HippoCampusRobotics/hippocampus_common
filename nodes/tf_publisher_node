@@ -36,7 +36,6 @@ from geometry_msgs.msg import PoseStamped, TwistStamped, Quaternion, \
 from nav_msgs.msg import Odometry
 import tf.transformations
 import tf2_ros
-import tf2_geometry_msgs
 
 from hippocampus_common.node import Node
 from hippocampus_common.tf_helper import TfHelper
