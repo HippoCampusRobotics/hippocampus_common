@@ -1,0 +1,56 @@
+<launch>
+    <!-- camera and mavros need to be started on hippocampus -->
+
+    <arg name="vehicle_name" />
+    <arg name="vehicle_type" default="bluerov" />
+
+    <!-- camera/image processing specific-->
+    <arg name="camera_name" default="front_camera" />
+    <arg name="do_rectify" default="true" />
+    <arg name="image_raw_topic" default="image_offboard" />
+    <arg name="image_rect_topic" default="image_rect" />
+    <arg name="tag_file" default="$(find bluerov_sim)/config/tags_standalone.yaml" />
+
+    <!-- EKF specific -->
+    <arg name="process_model" default="simple" />
+    <!-- "simple": new state = old state -->
+    <!-- "velocities": simple point mass model using velocities to propagate old state -->
+
+    <group ns="$(arg vehicle_name)">
+        <param name="vehicle_name" value="$(arg vehicle_name)" />
+        <param name="vehicle_type" value="$(arg vehicle_type)" />
+
+        <include file="$(find hippocampus_common)/launch/node_tf_publisher.launch" pass_all_args="true" />
+
+        <include file="$(find hippocampus_common)/launch/node_image_decoding.launch" pass_all_args="true">
+            <arg name="output_topic" value="$(arg image_raw_topic)" />
+        </include>
+
+        <!-- convert orientation from quaternion to roll, pitch, yaw -->
+        <include file="$(find hippocampus_common)/launch/inc_quat_to_rpy.launch" />
+
+        <group ns="$(arg camera_name)">
+            <node if="$(arg do_rectify)" name="image_rectifier" pkg="image_proc" type="image_proc">
+                <remap from="image_raw" to="$(arg image_raw_topic)" />
+                <remap from="image_rect" to="$(arg image_rect_topic)" />
+            </node>
+            <!-- start AprilTag Algorithm -->
+            <node pkg="apriltag_ros" type="apriltag_ros_continuous_node" name="apriltag_node" clear_params="true" output="screen">
+                <rosparam command="load" file="$(find apriltag_ros)/config/settings.yaml" />
+                <rosparam command="load" file="$(arg tag_file)" />
+                <!-- <remap from="image_rect" to="$(arg camera_name)/$(arg image_topic)"/> -->
+                <remap if="$(arg do_rectify)" from="image_rect" to="$(arg image_rect_topic)" />
+                <remap unless="$(arg do_rectify)" from="image_rect" to="$(arg image_raw_topic)" />
+                <param name="camera_frame" value="$(arg vehicle_name)/$(arg camera_name)/camera_frame" />
+                <param name="publish_tag_detections_image" value="true" />
+            </node>
+        </group>
+        <node pkg="bluerov_sim" type="range_sensor_node.py" name="range_sensor" output="screen">
+            <param name="sim" type="bool" value="$(arg sim)" />
+            <remap unless="$(arg sim)" from="tag_detections" to="$(arg camera_name)/tag_detections" />
+        </node>
+
+        <node pkg="hippocampus_common" type="ranges_debug.py" name="ranges_debug" />
+    </group>
+
+</launch>

@@ -22,6 +22,7 @@ catkin_install_python(PROGRAMS
   nodes/tf_publisher_node
   nodes/water_baro_node
   nodes/auto_offboard_node
+  nodes/ranges_debug.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

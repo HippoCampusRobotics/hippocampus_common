@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+import rospy
+from bluerov_sim.msg import RangeMeasurementArray
+from std_msgs.msg import Float32MultiArray
+from hippocampus_common.node import Node
+
+
+class DebugNode(Node):
+    def __init__(self, name, anonymous=False, disable_signals=False):
+        super().__init__(name,
+                         anonymous=anonymous,
+                         disable_signals=disable_signals)
+
+        self.debug_pub = rospy.Publisher("~debug",
+                                         Float32MultiArray,
+                                         queue_size=1)
+
+        rospy.Subscriber("ranges",
+                         RangeMeasurementArray,
+                         self.on_ranges,
+                         queue_size=1)
+
+    def on_ranges(self, range_msg_array):
+        num_ranges = len(range_msg_array.measurements)
+        dist_msg = Float32MultiArray()
+        dist_msg.data = [0.0] * 4
+
+        # if tags are detected
+        if num_ranges:
+            for i, anchor in enumerate(range_msg_array.measurements):
+                dist_msg.data[anchor.id - 1] = anchor.range
+
+        self.debug_pub.publish(dist_msg)
+
+
+def main():
+    node = DebugNode("range_debug")
+    node.run()
+
+
+if __name__ == "__main__":
+    main()
