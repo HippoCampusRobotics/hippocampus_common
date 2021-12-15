@@ -28,10 +28,6 @@
         <param name="vehicle_name" value="$(arg vehicle_name)" />
         <param name="vehicle_type" value="$(arg vehicle_type)" />
 
-        <!-- path follower/control -->
-        <node pkg="hippocampus_common" type="auto_offboard_node" name="auto_offboard" output="screen" />
-        <include file="$(find control)/launch/path_tracking.launch" pass_all_args="true" />
-
         <!-- camera -->
         <include file="$(find camera)/launch/camera_node.launch" pass_all_args="true" />
 
@@ -51,5 +47,10 @@
 
         <!-- convert orientation from quaternion to roll, pitch, yaw -->
         <include file="$(find hippocampus_common)/launch/inc_quat_to_rpy.launch" />
+
+
+        <!-- path follower/control -->
+        <node pkg="hippocampus_common" type="auto_offboard_node" name="auto_offboard" output="screen" />
+        <include file="$(find control)/launch/path_tracking.launch" pass_all_args="true" />
     </group>
 </launch>
