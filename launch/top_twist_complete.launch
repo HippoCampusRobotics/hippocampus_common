@@ -1,0 +1,55 @@
+<launch>
+    <arg name="vehicle_name" />
+    <arg name="calibration_file" />
+    <arg name="qgc_ip" doc="IP address of computer running QGroundControl" />
+    <arg name="do_twist" default="false" />
+    <arg name="use_ground_truth" default="false" />
+    <arg name="vehicle_type" default="hippocampus" />
+    <arg name="use_external_controller" default="false" />
+    <arg name="mavlink_id" default="1" doc="The system ID identifiying the vehicle. Must match PX4 parameter MAV_SYS_ID." />
+
+    <arg name="camera_name" default="vertical_camera" />
+    <arg name="do_rectify" default="true" />
+    <arg name="image_raw_topic" default="image_raw" />
+    <arg name="image_rect_topic" default="image_rect" />
+
+    <!-- EKF specific -->
+    <arg name="process_model" default="simple" />
+    <!-- "simple": new state = old state -->
+    <!-- "velocities": simple point mass model using velocities to propagate old state -->
+
+    <arg name="camera_frame_id" default="camera_frame" />
+    <arg name="framerate" default="10" />
+    <arg name="base_topic" default="image_raw" />
+    <arg name="fcu_url" default="/dev/fcu_usb" />
+    <arg name="respawn_mavros" default="true" />
+
+    <group ns="$(arg vehicle_name)">
+        <param name="vehicle_name" value="$(arg vehicle_name)" />
+        <param name="vehicle_type" value="$(arg vehicle_type)" />
+
+        <!-- path follower/control -->
+        <node pkg="hippocampus_common" type="auto_offboard_node" name="auto_offboard" output="screen" />
+        <include file="$(find control)/launch/path_tracking.launch" pass_all_args="true" />
+
+        <!-- camera -->
+        <include file="$(find camera)/launch/camera_node.launch" pass_all_args="true" />
+
+        <!-- mavros -->
+        <include file="$(find mavros)/launch/px4.launch">
+            <arg name="fcu_url" value="$(arg fcu_url)" />
+            <arg name="gcs_url" value="udp://@$(arg qgc_ip):14550" />
+            <arg name="respawn_mavros" value="$(arg respawn_mavros)" />
+            <arg name="tgt_system" value="$(arg mavlink_id)" />
+        </include>
+
+
+        <!-- localization -->
+        <include file="$(find hippocampus_common)/launch/node_tf_publisher.launch" pass_all_args="true" />
+
+        <include file="$(find mu_auv_localization)/launch/localization.launch" pass_all_args="true" />
+
+        <!-- convert orientation from quaternion to roll, pitch, yaw -->
+        <include file="$(find hippocampus_common)/launch/inc_quat_to_rpy.launch" />
+    </group>
+</launch>
