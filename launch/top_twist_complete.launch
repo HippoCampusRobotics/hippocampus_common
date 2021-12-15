@@ -2,7 +2,7 @@
     <arg name="vehicle_name" />
     <arg name="calibration_file" />
     <arg name="qgc_ip" doc="IP address of computer running QGroundControl" />
-    <arg name="do_twist" default="false" />
+    <arg name="do_twist" default="true" />
     <arg name="use_ground_truth" default="false" />
     <arg name="vehicle_type" default="hippocampus" />
     <arg name="use_external_controller" default="false" />
