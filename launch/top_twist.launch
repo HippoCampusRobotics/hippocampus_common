@@ -1,12 +1,9 @@
 <launch>
     <arg name="vehicle_name" />
-    <arg name="calibration_file" />
-    <arg name="qgc_ip" doc="IP address of computer running QGroundControl" />
     <arg name="do_twist" default="true" />
     <arg name="use_ground_truth" default="false" />
     <arg name="vehicle_type" default="hippocampus" />
     <arg name="use_external_controller" default="false" />
-    <arg name="mavlink_id" default="1" doc="The system ID identifiying the vehicle. Must match PX4 parameter MAV_SYS_ID." />
 
     <arg name="camera_name" default="vertical_camera" />
     <arg name="do_rectify" default="true" />
@@ -18,26 +15,9 @@
     <!-- "simple": new state = old state -->
     <!-- "velocities": simple point mass model using velocities to propagate old state -->
 
-    <arg name="camera_frame_id" default="camera_frame" />
-    <arg name="framerate" default="10" />
-    <arg name="base_topic" default="image_raw" />
-    <arg name="fcu_url" default="/dev/fcu_usb" />
-    <arg name="respawn_mavros" default="true" />
-
     <group ns="$(arg vehicle_name)">
         <param name="vehicle_name" value="$(arg vehicle_name)" />
         <param name="vehicle_type" value="$(arg vehicle_type)" />
-
-        <!-- camera -->
-        <include file="$(find camera)/launch/camera_node.launch" pass_all_args="true" />
-
-        <!-- mavros -->
-        <include file="$(find mavros)/launch/px4.launch">
-            <arg name="fcu_url" value="$(arg fcu_url)" />
-            <arg name="gcs_url" value="udp://@$(arg qgc_ip):14550" />
-            <arg name="respawn_mavros" value="$(arg respawn_mavros)" />
-            <arg name="tgt_system" value="$(arg mavlink_id)" />
-        </include>
 
 
         <!-- localization -->
