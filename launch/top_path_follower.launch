@@ -1,0 +1,12 @@
+<launch>
+    <arg name="vehicle_name" />
+    <arg name="do_twist" default="false" />
+    <arg name="use_ground_truth" default="false" />
+    <arg name="vehicle_type" default="hippocampus" />
+    <arg name="use_external_controller" default="false" />
+    <group ns="$(arg vehicle_name)">
+        <param name="vehicle_type" value="$(arg vehicle_type)" />
+        <node pkg="hippocampus_common" type="auto_offboard_node" name="auto_offboard" output="screen" />
+        <include file="$(find control)/launch/path_tracking.launch" pass_all_args="true" />
+    </group>
+</launch>
