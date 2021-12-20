@@ -21,7 +21,7 @@ class AutoOffboardNode(Node):
                                           queue_size=1)
         self.set_offboard = rospy.ServiceProxy("mavros/set_mode", SetMode)
 
-    def on_state(self, msg: State):
+    def on_state(self, msg):
         if msg.mode != "OFFBOARD":
             try:
                 self.set_offboard(custom_mode="OFFBOARD")
