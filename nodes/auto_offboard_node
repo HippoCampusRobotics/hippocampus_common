@@ -11,9 +11,9 @@ class AutoOffboardNode(Node):
 
     """
     def __init__(self, name, anonymous=False, disable_signals=False):
-        super().__init__(name,
-                         anonymous=anonymous,
-                         disable_signals=disable_signals)
+        super(AutoOffboardNode, self).__init__(name,
+                                               anonymous=anonymous,
+                                               disable_signals=disable_signals)
 
         self.state_sub = rospy.Subscriber("mavros/state",
                                           State,
