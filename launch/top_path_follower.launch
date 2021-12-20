@@ -1,6 +1,8 @@
 <launch>
     <arg name="vehicle_name" />
+    <arg name="path_file" default="$(find path_planning)/config/infinity_path.yaml" />
     <arg name="do_twist" default="false" />
+    <arg name="do_surfacing" default="false" />
     <arg name="use_ground_truth" default="false" />
     <arg name="vehicle_type" default="hippocampus" />
     <arg name="use_external_controller" default="false" />
