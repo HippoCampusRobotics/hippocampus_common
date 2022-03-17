@@ -22,5 +22,8 @@
             <arg name="respawn_mavros" value="$(arg respawn_mavros)" />
             <arg name="tgt_system" value="$(arg mavlink_id)" />
         </include>
+
+        <!-- baro -->
+        <include file="$(find hardware_interfaces)/launch/node_barometer.launch"/>
     </group>
 </launch>
