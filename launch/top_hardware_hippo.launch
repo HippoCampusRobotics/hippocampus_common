@@ -1,7 +1,7 @@
 <launch>
     <arg name="vehicle_name" />
     <arg name="calibration_file" />
-    
+    <arg name="use_baro" default="false" />
     <arg name="camera_name" default="vertical_camera" />
     <arg name="camera_frame_id" default="camera_frame" />
     <arg name="framerate" default="10" />
@@ -24,6 +24,6 @@
         </include>
 
         <!-- baro -->
-        <include file="$(find hardware_interfaces)/launch/node_barometer.launch"/>
+        <include if="$(arg use_baro)" file="$(find hardware_interfaces)/launch/node_barometer.launch"/>
     </group>
 </launch>
