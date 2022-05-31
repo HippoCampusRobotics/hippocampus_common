@@ -3,8 +3,8 @@
     <arg name="calibration_file" />
     <arg name="use_baro" default="false" />
     <arg name="camera_name" default="vertical_camera" />
-    <arg name="camera_frame_id" default="camera_frame" />
-    <arg name="framerate" default="10" />
+    <arg name="camera_frame_id" default="$(arg vehicle_name)/$(arg camera_name)/camera_frame" />
+    <arg name="framerate" default="30" />
     <arg name="base_topic" default="image_raw" />
     <arg name="qgc_ip" doc="IP address of computer running QGroundControl" />
     <arg name="fcu_url" default="/dev/fcu_usb" />
