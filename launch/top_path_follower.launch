@@ -7,6 +7,6 @@
     <group ns="$(arg vehicle_name)">
         <param name="vehicle_type" value="$(arg vehicle_type)" />
         <node pkg="hippocampus_common" type="auto_offboard_node" name="auto_offboard" output="screen" />
-        <include file="$(find control)/launch/path_tracking.launch" pass_all_args="true" />
+        <include file="$(find control)/launch/inc_path_tracking.launch" pass_all_args="true" />
     </group>
 </launch>
