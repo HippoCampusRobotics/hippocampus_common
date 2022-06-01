@@ -18,7 +18,7 @@
 
         <include file="$(find hippocampus_common)/launch/node_tf_publisher.launch" pass_all_args="true" />
 
-        <include file="$(find mu_auv_localization)/launch/localization.launch" pass_all_args="true" />
+        <include file="$(find mu_auv_localization)/launch/inc_localization.launch" pass_all_args="true" />
 
         <!-- convert orientation from quaternion to roll, pitch, yaw -->
         <include file="$(find hippocampus_common)/launch/inc_quat_to_rpy.launch" />
