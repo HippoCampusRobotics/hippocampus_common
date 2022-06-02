@@ -20,7 +20,6 @@ catkin_install_python(PROGRAMS
   nodes/quat_to_rpy_node
   nodes/rpy_to_att_target_node
   nodes/tf_publisher_node
-  nodes/water_baro_node
   nodes/auto_offboard_node
   nodes/ranges_debug_node
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
