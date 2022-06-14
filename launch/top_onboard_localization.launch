@@ -1,7 +1,17 @@
 <launch>
     <arg name="vehicle_name" />
     <arg name="vehicle_type" default="hippocampus" />
+
+    <!-- tag poses in tank/pool -->
+    <arg name="use_pool" default="false" />
+    <arg if="$(arg use_pool)" name="tag_poses_file" value="$(find mu_auv_localization)/config/tag_poses.yaml" />
+    <arg unless="$(arg use_pool)" name="tag_poses_file" value="$(find mu_auv_localization)/config/tag_poses_pool.yaml" />
+
+    <!-- known tags and sizes for AprilTag algorithm -->
+    <arg if="$(arg use_pool)" name="tag_file" value="$(find mu_auv_localization)/config/tags_standalone_pool.yaml" />
+    <arg unless="$(arg use_pool)" name="tag_file" value="$(find mu_auv_localization)/config/tags_standalone.yaml" />
     
+    <!-- camera/image processing specific-->
     <arg name="camera_name" default="vertical_camera" />
     <arg name="do_rectify" default="true" />
     <arg name="image_raw_topic" default="image_raw" />
