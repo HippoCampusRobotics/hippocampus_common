@@ -12,8 +12,8 @@
 
     <!-- tag poses in tank/pool -->
     <arg name="use_pool" default="false" />
-    <arg if="$(arg use_pool)" name="tag_poses_file" value="$(find mu_auv_localization)/config/tag_poses.yaml" />
-    <arg unless="$(arg use_pool)" name="tag_poses_file" value="$(find mu_auv_localization)/config/tag_poses_pool.yaml" />
+    <arg if="$(arg use_pool)" name="tag_poses_file" value="$(find mu_auv_localization)/config/tag_poses_pool.yaml" />
+    <arg unless="$(arg use_pool)" name="tag_poses_file" value="$(find mu_auv_localization)/config/tag_poses.yaml" />
     
     <!-- known tags and sizes for AprilTag algorithm -->
     <arg if="$(arg use_pool)" name="tag_file" value="$(find mu_auv_localization)/config/tags_standalone_pool.yaml" />
